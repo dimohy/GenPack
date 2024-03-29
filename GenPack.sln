@@ -1,0 +1,44 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.10.34707.107
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GenPack.Test.Console", "src\GenPack.Test.Console\GenPack.Test.Console.csproj", "{DF51BB63-7491-4B35-B96D-A0BAA3D96A59}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GenPack", "src\GenPack\GenPack.csproj", "{B696118C-50B4-49CB-A2E8-63B152AFDB34}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GenPack.SourceGenerator", "src\GenPack.SourceGenerator\GenPack.SourceGenerator.csproj", "{92B133DB-92C6-4FA1-AD03-D03131244142}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		DEBUGGENERATOR|Any CPU = DEBUGGENERATOR|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DF51BB63-7491-4B35-B96D-A0BAA3D96A59}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DF51BB63-7491-4B35-B96D-A0BAA3D96A59}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DF51BB63-7491-4B35-B96D-A0BAA3D96A59}.DEBUGGENERATOR|Any CPU.ActiveCfg = DEBUGGENERATOR|Any CPU
+		{DF51BB63-7491-4B35-B96D-A0BAA3D96A59}.DEBUGGENERATOR|Any CPU.Build.0 = DEBUGGENERATOR|Any CPU
+		{DF51BB63-7491-4B35-B96D-A0BAA3D96A59}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DF51BB63-7491-4B35-B96D-A0BAA3D96A59}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B696118C-50B4-49CB-A2E8-63B152AFDB34}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B696118C-50B4-49CB-A2E8-63B152AFDB34}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B696118C-50B4-49CB-A2E8-63B152AFDB34}.DEBUGGENERATOR|Any CPU.ActiveCfg = DEBUGGENERATOR|Any CPU
+		{B696118C-50B4-49CB-A2E8-63B152AFDB34}.DEBUGGENERATOR|Any CPU.Build.0 = DEBUGGENERATOR|Any CPU
+		{B696118C-50B4-49CB-A2E8-63B152AFDB34}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B696118C-50B4-49CB-A2E8-63B152AFDB34}.Release|Any CPU.Build.0 = Release|Any CPU
+		{92B133DB-92C6-4FA1-AD03-D03131244142}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{92B133DB-92C6-4FA1-AD03-D03131244142}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{92B133DB-92C6-4FA1-AD03-D03131244142}.DEBUGGENERATOR|Any CPU.ActiveCfg = DEBUGGENERATOR|Any CPU
+		{92B133DB-92C6-4FA1-AD03-D03131244142}.DEBUGGENERATOR|Any CPU.Build.0 = DEBUGGENERATOR|Any CPU
+		{92B133DB-92C6-4FA1-AD03-D03131244142}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{92B133DB-92C6-4FA1-AD03-D03131244142}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {EA44E7FC-18E0-4D98-BAAB-1ED70D8023D6}
+	EndGlobalSection
+EndGlobal
