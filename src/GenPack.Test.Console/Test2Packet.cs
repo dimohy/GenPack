@@ -1,6 +1,6 @@
 ﻿namespace GenPack.Test.Console;
 
-//[GenPackable]
+[GenPackable]
 public partial class Test2Packet
 {
     public readonly static PacketSchema Schema = PacketSchemaBuilder.Create(UnitEndian.Little, StringEncoding.ASCII)

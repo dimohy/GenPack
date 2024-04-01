@@ -8,6 +8,8 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 
+using SchemaItem = (string MethodName, Microsoft.CodeAnalysis.CSharp.Syntax.ArgumentSyntax[] Arguments, string? GenericType);
+
 namespace GenPack;
 
 [Generator]
@@ -81,22 +83,26 @@ public class GenPackGenerator : IIncrementalGenerator
             if (classSymbol.GetMembers().FirstOrDefault(m => m is IFieldSymbol fs && fs.IsStatic is true && fs.Type.Name is nameof(PacketSchema)) is not IFieldSymbol packetSchema)
                 continue;
 
-            var packetSchemaSyntax = packetSchema.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() as VariableDeclaratorSyntax ;
-            if (packetSchemaSyntax is null)
+            if (packetSchema.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is not VariableDeclaratorSyntax packetSchemaSyntax)
                 continue;
 
             var schemaBuilder = new StringBuilder();
+            var schemaItems = ParseSchema(compilation, packetSchemaSyntax.DescendantNodes());
+
             var methodBuilder = new StringBuilder();
 
             if (string.IsNullOrEmpty(@namespace) is false)
-                schemaBuilder.AppendLine($$"""namespace {{@namespace}} {""");
+                schemaBuilder.AppendLine($$"""
+                    namespace {{@namespace}} {
+                    """);
 
             schemaBuilder.AppendLine($$"""
                     public partial class {{classSymbol.Name}} : GenPack.IGenPackable
                     {
                 """);
 
-            ProcessPacketSchemaSyntax(schemaBuilder, methodBuilder, packetSchemaSyntax.DescendantNodes());
+            AddProperties(schemaBuilder, schemaItems);
+            AddMethods(methodBuilder, schemaItems);
 
             schemaBuilder.AppendLine("    }");
 
@@ -107,13 +113,15 @@ public class GenPackGenerator : IIncrementalGenerator
         }
     }
 
-    private static void ProcessPacketSchemaSyntax(StringBuilder sb, StringBuilder mb, IEnumerable<SyntaxNode> nodes)
+    private static IReadOnlyList<SchemaItem> ParseSchema(Compilation compilation, IEnumerable<SyntaxNode> nodes)
     {
+        List<SchemaItem> result = [];
+
         var invocationNodes = nodes.OfType<InvocationExpressionSyntax>().Reverse().ToArray();
         if (invocationNodes.Length is 0)
-            return;
+            return result;
         if (invocationNodes.First().ChildNodes().First().TryGetInferredMemberName() is not nameof(PacketSchemaBuilder.Create))
-            return;
+            return result;
 
         foreach (var node in invocationNodes)
         {
@@ -121,10 +129,43 @@ public class GenPackGenerator : IIncrementalGenerator
             if (childNodes.Length < 2)
                 continue;
 
-            var methodName = childNodes[0].TryGetInferredMemberName();
+            var methodName = childNodes[0].TryGetInferredMemberName()!;
+            string? genericType = null;
+            // Finding generic formats
+            if (string.IsNullOrEmpty(methodName) is true && childNodes[0].ChildNodes().Last() is GenericNameSyntax gns)
+            {
+                methodName = gns.Identifier.Value?.ToString() ?? "object";
+                genericType = gns.TypeArgumentList.Arguments.First().ToString();
+                // TODO: GetSymbolsWithName()는 일치하는 이름의 모든 유형을 반환하므로 이후 정확한 제네릭 유형만 가져오는 것으로 수정하여야 함
+                genericType = compilation.GetSymbolsWithName(genericType).FirstOrDefault()?.ToDisplayString();
+            }
             var arguments = childNodes[1].ChildNodes().OfType<ArgumentSyntax>().ToArray();
 
-            switch (methodName)
+            if (methodName is nameof(PacketSchemaBuilder.Build) is true)
+                break;
+
+            result.Add((methodName, arguments, genericType));
+        }
+
+        return result;
+    }
+
+    private static void AddMethods(StringBuilder sb, IReadOnlyList<SchemaItem> items)
+    {
+        if (items.Count is 0)
+            return;
+
+        var createMethod = items.First();
+        var methods = items.Skip(1);
+
+
+    }
+
+    private static void AddProperties(StringBuilder sb, IReadOnlyList<SchemaItem> items)
+    {
+        foreach (var item in items)
+        {
+            switch (item.MethodName)
             {
                 case nameof(PacketSchemaBuilder.@byte):
                 case nameof(PacketSchemaBuilder.@sbyte):
@@ -137,7 +178,16 @@ public class GenPackGenerator : IIncrementalGenerator
                 case nameof(PacketSchemaBuilder.single):
                 case nameof(PacketSchemaBuilder.@double):
                 case nameof(PacketSchemaBuilder.@string):
-                    AddProperty(sb, mb, methodName, arguments);
+                    AddProperty(sb, item);
+                    break;
+                case nameof(PacketSchemaBuilder.@object):
+                    AddObjectProperty(sb, item);
+                    break;
+                case nameof(PacketSchemaBuilder.@list):
+                    AddListProperty(sb, item);
+                    break;
+                case nameof(PacketSchemaBuilder.@dict):
+                    AddDictProperty(sb, item);
                     break;
                 case nameof(PacketSchemaBuilder.BeginPointChecksum):
                     break;
@@ -145,19 +195,24 @@ public class GenPackGenerator : IIncrementalGenerator
                     break;
                 case nameof(PacketSchemaBuilder.@checkum):
                     break;
-                case nameof(PacketSchemaBuilder.Build):
-                    break;
                 default:
                     break;
             }
         }
     }
 
-    private static void AddProperty(StringBuilder sb, StringBuilder mb, string methodName, ArgumentSyntax[] arguments)
+    private static void AddProperty(StringBuilder sb, SchemaItem item)
     {
-        if (arguments.Length > 1)
+        var @type = item.MethodName;
+        var defaultSet = "";
+        if (type is "string")
+            defaultSet = " = string.Empty;";
+
+        var propertyName = item.Arguments[0].Expression.ToString()[1..^1];
+
+        if (item.Arguments.Length > 1)
         {
-            var desc = arguments[1].Expression.ToString().Replace("\"", "");
+            var desc = item.Arguments[1].Expression.ToString()[1..^1];
             if (string.IsNullOrWhiteSpace(desc) is false)
             {
                 sb.AppendLine($$"""
@@ -168,7 +223,80 @@ public class GenPackGenerator : IIncrementalGenerator
             }
         }
 
-        sb.AppendLine($$"""        public {{methodName}} {{arguments[0].Expression.ToString().Replace("\"", "")}} { get; set; }""");
+        sb.AppendLine($$"""
+                    public {{@type}} {{propertyName}} { get; set; }{{defaultSet}}
+            """);
+    }
+
+    private static void AddObjectProperty(StringBuilder sb, SchemaItem item)
+    {
+        var @type = item.GenericType;
+        var propertyName = item.Arguments[0].Expression.ToString()[1..^1];
+
+        if (item.Arguments.Length > 1)
+        {
+            var desc = item.Arguments[1].Expression.ToString()[1..^1];
+            if (string.IsNullOrWhiteSpace(desc) is false)
+            {
+                sb.AppendLine($$"""
+                                    /// <summary>
+                                    /// {{desc}}
+                                    /// </summary>
+                            """);
+            }
+        }
+
+        sb.AppendLine($$"""
+                    public {{@type}} {{propertyName}} { get; set; }
+            """);
+    }
+
+    private static void AddListProperty(StringBuilder sb, SchemaItem item)
+    {
+        var @type = item.GenericType;
+        var defaultSet = $" = new List<{@type}>();";
+        var propertyName = item.Arguments[0].Expression.ToString()[1..^1];
+
+        if (item.Arguments.Length > 1)
+        {
+            var desc = item.Arguments[1].Expression.ToString()[1..^1];
+            if (string.IsNullOrWhiteSpace(desc) is false)
+            {
+                sb.AppendLine($$"""
+                                    /// <summary>
+                                    /// {{desc}}
+                                    /// </summary>
+                            """);
+            }
+        }
+
+        sb.AppendLine($$"""
+                    public System.Collections.Generic.IList<{{@type}}> {{propertyName}} { get; set; }{{defaultSet}}
+            """);
+    }
+
+    private static void AddDictProperty(StringBuilder sb, SchemaItem item)
+    {
+        var @type = item.GenericType;
+        var defaultSet = $" = new Dictionary<string, {@type}>();";
+        var propertyName = item.Arguments[0].Expression.ToString()[1..^1];
+
+        if (item.Arguments.Length > 1)
+        {
+            var desc = item.Arguments[1].Expression.ToString()[1..^1];
+            if (string.IsNullOrWhiteSpace(desc) is false)
+            {
+                sb.AppendLine($$"""
+                                    /// <summary>
+                                    /// {{desc}}
+                                    /// </summary>
+                            """);
+            }
+        }
+
+        sb.AppendLine($$"""
+                    public System.Collections.Generic.IDictionary<string, {{@type}}> {{propertyName}} { get; set; }{{defaultSet}}
+            """);
     }
 
     /// <summary>
