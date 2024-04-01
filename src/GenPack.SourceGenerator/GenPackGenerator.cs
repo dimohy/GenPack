@@ -4,11 +4,12 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
 using System.Collections.Immutable;
+using System.Data;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 
-using SchemaItem = (string MethodName, Microsoft.CodeAnalysis.CSharp.Syntax.ArgumentSyntax[] Arguments, string? GenericType);
+using SchemaItem = (string SchemaName, string SchemaType, bool IsDefaultType, Microsoft.CodeAnalysis.CSharp.Syntax.ArgumentSyntax[] Arguments);
 
 namespace GenPack;
 
@@ -89,22 +90,20 @@ public class GenPackGenerator : IIncrementalGenerator
             var schemaBuilder = new StringBuilder();
             var schemaItems = ParseSchema(compilation, packetSchemaSyntax.DescendantNodes());
 
-            var methodBuilder = new StringBuilder();
-
             if (string.IsNullOrEmpty(@namespace) is false)
                 schemaBuilder.AppendLine($$"""
                     namespace {{@namespace}} {
                     """);
 
             schemaBuilder.AppendLine($$"""
-                    public partial class {{classSymbol.Name}} : GenPack.IGenPackable
-                    {
+                {{D(1)}}public partial class {{classSymbol.Name}} : GenPack.IGenPackable
+                {{D(1)}}{
                 """);
 
             AddProperties(schemaBuilder, schemaItems);
-            AddMethods(methodBuilder, schemaItems);
+            AddMethods(schemaBuilder, schemaItems);
 
-            schemaBuilder.AppendLine("    }");
+            schemaBuilder.AppendLine($$"""{{D(1)}}}""");
 
             if (string.IsNullOrEmpty(@namespace) is false)
                 schemaBuilder.AppendLine("}");
@@ -129,22 +128,22 @@ public class GenPackGenerator : IIncrementalGenerator
             if (childNodes.Length < 2)
                 continue;
 
-            var methodName = childNodes[0].TryGetInferredMemberName()!;
-            string? genericType = null;
+            string schemaName = childNodes[0].TryGetInferredMemberName()!;
+            string schemaType = schemaName;
             // Finding generic formats
-            if (string.IsNullOrEmpty(methodName) is true && childNodes[0].ChildNodes().Last() is GenericNameSyntax gns)
+            if (string.IsNullOrEmpty(schemaName) is true && childNodes[0].ChildNodes().Last() is GenericNameSyntax gns)
             {
-                methodName = gns.Identifier.Value?.ToString() ?? "object";
-                genericType = gns.TypeArgumentList.Arguments.First().ToString();
+                schemaName = gns.Identifier.Value?.ToString() ?? "object";
+                schemaType = gns.TypeArgumentList.Arguments.First().ToString();
                 // TODO: GetSymbolsWithName()는 일치하는 이름의 모든 유형을 반환하므로 이후 정확한 제네릭 유형만 가져오는 것으로 수정하여야 함
-                genericType = compilation.GetSymbolsWithName(genericType).FirstOrDefault()?.ToDisplayString();
+                schemaType = compilation.GetSymbolsWithName(schemaType).FirstOrDefault()?.ToDisplayString() ?? schemaType;
             }
             var arguments = childNodes[1].ChildNodes().OfType<ArgumentSyntax>().ToArray();
 
-            if (methodName is nameof(PacketSchemaBuilder.Build) is true)
+            if (schemaName is nameof(PacketSchemaBuilder.Build) is true)
                 break;
 
-            result.Add((methodName, arguments, genericType));
+            result.Add((schemaName, schemaType, PacketSchemaBuilder.IsDefaultType(schemaType), arguments));
         }
 
         return result;
@@ -158,14 +157,122 @@ public class GenPackGenerator : IIncrementalGenerator
         var createMethod = items.First();
         var methods = items.Skip(1);
 
+        addToPackMethod();
+        addFromPackMethod();
 
+        // ------
+
+        void addToPackMethod()
+        {
+            sb.AppendLine($$"""
+                {{D(2)}}public void ToPacket(System.IO.Stream stream)
+                {{D(2)}}{
+                {{D(2)}}    System.IO.BinaryWriter writer = new System.IO.BinaryWriter(stream);
+                """);
+
+
+            foreach (var item in methods)
+            {
+                switch (item.SchemaName)
+                {
+                    case nameof(PacketSchemaBuilder.@byte):
+                    case nameof(PacketSchemaBuilder.@sbyte):
+                    case nameof(PacketSchemaBuilder.@short):
+                    case nameof(PacketSchemaBuilder.@ushort):
+                    case nameof(PacketSchemaBuilder.@int):
+                    case nameof(PacketSchemaBuilder.@uint):
+                    case nameof(PacketSchemaBuilder.@long):
+                    case nameof(PacketSchemaBuilder.@ulong):
+                    case nameof(PacketSchemaBuilder.single):
+                    case nameof(PacketSchemaBuilder.@double):
+                    case nameof(PacketSchemaBuilder.@string):
+                        {
+                            var propertyName = GetPropertyName(item);
+                            sb.AppendLine($"{D(3)}writer.Write({propertyName});");
+                        }
+                        break;
+                    case nameof(PacketSchemaBuilder.@object):
+                        {
+                            var propertyName = GetPropertyName(item);
+                            sb.AppendLine($"{D(3)}{propertyName}.ToPacket(stream);");
+                        }
+                        break;
+                    case nameof(PacketSchemaBuilder.@list):
+                        {
+                            var propertyName = GetPropertyName(item);
+                            var writeMethod = item.IsDefaultType is true ? "writer.Write(item)" : "item.ToPacket(stream)";
+
+                            sb.AppendLine($$"""
+                            {{D(3)}}writer.Write({{propertyName}}.Count);
+                            {{D(3)}}foreach (var item in {{propertyName}})
+                            {{D(3)}}{
+                            {{D(3)}}    {{writeMethod}};
+                            {{D(3)}}}
+                            """);
+                        }
+                        break;
+                    case nameof(PacketSchemaBuilder.@dict):
+                        {
+                            var propertyName = GetPropertyName(item);
+                            var writeMethod = item.IsDefaultType is true ? "writer.Write(item.Value)" : "item.Value.ToPacket(stream)";
+
+                            sb.AppendLine($$"""
+                            {{D(3)}}writer.Write({{propertyName}}.Count);
+                            {{D(3)}}foreach (var item in {{propertyName}})
+                            {{D(3)}}{
+                            {{D(3)}}    writer.Write(item.Key);
+                            {{D(3)}}    {{writeMethod}};
+                            {{D(3)}}}
+                            """);
+                        }
+                        break;
+
+                    case nameof(PacketSchemaBuilder.@array):
+                        {
+                            var propertyName = GetPropertyName(item);
+                            var writeMethod = item.IsDefaultType is true ? "writer.Write(item)" : "item.ToPacket(stream)";
+                            if (item.IsDefaultType is true)
+                            {
+                                if (item.SchemaType is nameof(PacketSchemaBuilder.@byte))
+                                {
+                                    sb.AppendLine($"{D(3)}writer.Write({propertyName});");
+                                    break;
+                                }
+                            }
+
+                            sb.AppendLine($$"""
+                            {{D(3)}}foreach (var item in {{propertyName}})
+                            {{D(3)}}{
+                            {{D(3)}}    {{writeMethod}};
+                            {{D(3)}}}
+                            """);
+                        }
+                        break;
+                    case nameof(PacketSchemaBuilder.BeginPointChecksum):
+                        break;
+                    case nameof(PacketSchemaBuilder.EndPointChecksum):
+                        break;
+                    case nameof(PacketSchemaBuilder.@checkum):
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            sb.AppendLine($$"""{{D(2)}}}""");
+        }
+
+        void addFromPackMethod()
+        {
+        }
     }
 
+    private static string GetPropertyName(SchemaItem item) => item.Arguments[0].Expression.ToString()[1..^1];
     private static void AddProperties(StringBuilder sb, IReadOnlyList<SchemaItem> items)
     {
         foreach (var item in items)
         {
-            switch (item.MethodName)
+            switch (item.SchemaName)
             {
                 case nameof(PacketSchemaBuilder.@byte):
                 case nameof(PacketSchemaBuilder.@sbyte):
@@ -189,6 +296,9 @@ public class GenPackGenerator : IIncrementalGenerator
                 case nameof(PacketSchemaBuilder.@dict):
                     AddDictProperty(sb, item);
                     break;
+                case nameof(PacketSchemaBuilder.@array):
+                    AddArrayProperty(sb, item);
+                    break;
                 case nameof(PacketSchemaBuilder.BeginPointChecksum):
                     break;
                 case nameof(PacketSchemaBuilder.EndPointChecksum):
@@ -203,7 +313,7 @@ public class GenPackGenerator : IIncrementalGenerator
 
     private static void AddProperty(StringBuilder sb, SchemaItem item)
     {
-        var @type = item.MethodName;
+        var @type = item.SchemaType;
         var defaultSet = "";
         if (type is "string")
             defaultSet = " = string.Empty;";
@@ -216,21 +326,21 @@ public class GenPackGenerator : IIncrementalGenerator
             if (string.IsNullOrWhiteSpace(desc) is false)
             {
                 sb.AppendLine($$"""
-                                    /// <summary>
-                                    /// {{desc}}
-                                    /// </summary>
+                            {{D(2)}}/// <summary>
+                            {{D(2)}}/// {{desc}}
+                            {{D(2)}}/// </summary>
                             """);
             }
         }
 
         sb.AppendLine($$"""
-                    public {{@type}} {{propertyName}} { get; set; }{{defaultSet}}
+            {{D(2)}}public {{@type}} {{propertyName}} { get; set; }{{defaultSet}}
             """);
     }
 
     private static void AddObjectProperty(StringBuilder sb, SchemaItem item)
     {
-        var @type = item.GenericType;
+        var @type = item.SchemaType;
         var propertyName = item.Arguments[0].Expression.ToString()[1..^1];
 
         if (item.Arguments.Length > 1)
@@ -239,21 +349,21 @@ public class GenPackGenerator : IIncrementalGenerator
             if (string.IsNullOrWhiteSpace(desc) is false)
             {
                 sb.AppendLine($$"""
-                                    /// <summary>
-                                    /// {{desc}}
-                                    /// </summary>
+                            {{D(2)}}/// <summary>
+                            {{D(2)}}/// {{desc}}
+                            {{D(2)}}/// </summary>
                             """);
             }
         }
 
         sb.AppendLine($$"""
-                    public {{@type}} {{propertyName}} { get; set; }
+            {{D(2)}}public {{@type}} {{propertyName}} { get; set; }
             """);
     }
 
     private static void AddListProperty(StringBuilder sb, SchemaItem item)
     {
-        var @type = item.GenericType;
+        var @type = item.SchemaType;
         var defaultSet = $" = new List<{@type}>();";
         var propertyName = item.Arguments[0].Expression.ToString()[1..^1];
 
@@ -263,21 +373,21 @@ public class GenPackGenerator : IIncrementalGenerator
             if (string.IsNullOrWhiteSpace(desc) is false)
             {
                 sb.AppendLine($$"""
-                                    /// <summary>
-                                    /// {{desc}}
-                                    /// </summary>
+                            {{D(2)}}/// <summary>
+                            {{D(2)}}/// {{desc}}
+                            {{D(2)}}/// </summary>
                             """);
             }
         }
 
         sb.AppendLine($$"""
-                    public System.Collections.Generic.IList<{{@type}}> {{propertyName}} { get; set; }{{defaultSet}}
+            {{D(2)}}public System.Collections.Generic.IList<{{@type}}> {{propertyName}} { get; }{{defaultSet}}
             """);
     }
 
     private static void AddDictProperty(StringBuilder sb, SchemaItem item)
     {
-        var @type = item.GenericType;
+        var @type = item.SchemaType;
         var defaultSet = $" = new Dictionary<string, {@type}>();";
         var propertyName = item.Arguments[0].Expression.ToString()[1..^1];
 
@@ -287,15 +397,42 @@ public class GenPackGenerator : IIncrementalGenerator
             if (string.IsNullOrWhiteSpace(desc) is false)
             {
                 sb.AppendLine($$"""
-                                    /// <summary>
-                                    /// {{desc}}
-                                    /// </summary>
+                            {{D(2)}}/// <summary>
+                            {{D(2)}}/// {{desc}}
+                            {{D(2)}}/// </summary>
                             """);
             }
         }
 
         sb.AppendLine($$"""
-                    public System.Collections.Generic.IDictionary<string, {{@type}}> {{propertyName}} { get; set; }{{defaultSet}}
+            {{D(2)}}public System.Collections.Generic.IDictionary<string, {{@type}}> {{propertyName}} { get; }{{defaultSet}}
+            """);
+    }
+
+    private static void AddArrayProperty(StringBuilder sb, SchemaItem item)
+    {
+        var @type = item.SchemaType;
+        var length = 0;
+        if (item.Arguments.Length > 1)
+            length = int.Parse(item.Arguments[1].Expression.ToString());
+        var defaultSet = $" = new {@type}[{length}];";
+        var propertyName = item.Arguments[0].Expression.ToString()[1..^1];
+
+        if (item.Arguments.Length > 2)
+        {
+            var desc = item.Arguments[2].Expression.ToString()[1..^1];
+            if (string.IsNullOrWhiteSpace(desc) is false)
+            {
+                sb.AppendLine($$"""
+                            {{D(2)}}/// <summary>
+                            {{D(2)}}/// {{desc}}
+                            {{D(2)}}/// </summary>
+                            """);
+            }
+        }
+
+        sb.AppendLine($$"""
+            {{D(2)}}public {{@type}}[] {{propertyName}} { get; }{{defaultSet}}
             """);
     }
 
@@ -342,4 +479,6 @@ public class GenPackGenerator : IIncrementalGenerator
         // 최종 네임스페이스 반환
         return nameSpace;
     }
+
+    private static string D(int depth) => new(' ', depth * 4);
 }

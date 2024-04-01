@@ -95,6 +95,11 @@ public class PacketSchemaBuilder
         return this;
     }
 
+    public PacketSchemaBuilder @array<T>(string name, int length, string description = "")
+    {
+        return this;
+    }
+
     public PacketSchemaBuilder BeginPointChecksum()
     {
         return this;
@@ -114,4 +119,20 @@ public class PacketSchemaBuilder
     {
         return this;
     }
+
+    public static bool IsDefaultType(string schemaType) => schemaType switch
+    {
+        nameof(PacketSchemaBuilder.@byte) => true,
+        nameof(PacketSchemaBuilder.@sbyte) => true,
+        nameof(PacketSchemaBuilder.@short) => true,
+        nameof(PacketSchemaBuilder.@ushort) => true,
+        nameof(PacketSchemaBuilder.@int) => true,
+        nameof(PacketSchemaBuilder.@uint) => true,
+        nameof(PacketSchemaBuilder.@long) => true,
+        nameof(PacketSchemaBuilder.@ulong) => true,
+        nameof(PacketSchemaBuilder.@single) => true,
+        nameof(PacketSchemaBuilder.@double) => true,
+        nameof(PacketSchemaBuilder.@string) => true,
+        _ => false
+    };
 }
