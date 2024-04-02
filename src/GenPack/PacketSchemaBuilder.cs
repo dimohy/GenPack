@@ -69,7 +69,7 @@ public class PacketSchemaBuilder
         return this;
     }
 
-    public PacketSchemaBuilder @single(string name, string description = "")
+    public PacketSchemaBuilder @float(string name, string description = "")
     {
         return this;
     }

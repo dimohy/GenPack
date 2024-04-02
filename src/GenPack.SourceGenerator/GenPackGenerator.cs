@@ -139,7 +139,7 @@ public class GenPackGenerator : IIncrementalGenerator
                 schemaName = gns.Identifier.Value?.ToString() ?? "object";
                 schemaType = gns.TypeArgumentList.Arguments.First().ToString();
                 // TODO: GetSymbolsWithName()는 일치하는 이름의 모든 유형을 반환하므로 이후 정확한 제네릭 유형만 가져오는 것으로 수정하여야 함
-                schemaType = compilation.GetSymbolsWithName(schemaType).FirstOrDefault()?.ToDisplayString() ?? schemaType;
+                schemaType = compilation.GetSymbolsWithName(schemaType).FirstOrDefault(x => x is INamedTypeSymbol)?.ToDisplayString() ?? schemaType;
             }
             var arguments = childNodes[1].ChildNodes().OfType<ArgumentSyntax>().ToArray();
 
@@ -195,7 +195,7 @@ public class GenPackGenerator : IIncrementalGenerator
                     case nameof(PacketSchemaBuilder.@uint):
                     case nameof(PacketSchemaBuilder.@long):
                     case nameof(PacketSchemaBuilder.@ulong):
-                    case nameof(PacketSchemaBuilder.single):
+                    case nameof(PacketSchemaBuilder.@float):
                     case nameof(PacketSchemaBuilder.@double):
                     case nameof(PacketSchemaBuilder.@string):
                         {
@@ -306,7 +306,7 @@ public class GenPackGenerator : IIncrementalGenerator
                     case nameof(PacketSchemaBuilder.@uint):
                     case nameof(PacketSchemaBuilder.@long):
                     case nameof(PacketSchemaBuilder.@ulong):
-                    case nameof(PacketSchemaBuilder.single):
+                    case nameof(PacketSchemaBuilder.@float):
                     case nameof(PacketSchemaBuilder.@double):
                     case nameof(PacketSchemaBuilder.@string):
                         {
@@ -412,7 +412,7 @@ public class GenPackGenerator : IIncrementalGenerator
                 case nameof(PacketSchemaBuilder.@uint):
                 case nameof(PacketSchemaBuilder.@long):
                 case nameof(PacketSchemaBuilder.@ulong):
-                case nameof(PacketSchemaBuilder.single):
+                case nameof(PacketSchemaBuilder.@float):
                 case nameof(PacketSchemaBuilder.@double):
                 case nameof(PacketSchemaBuilder.@string):
                     AddProperty(sb, item);

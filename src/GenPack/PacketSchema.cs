@@ -17,7 +17,7 @@ namespace GenPack {
             nameof(PacketSchemaBuilder.@uint) => true,
             nameof(PacketSchemaBuilder.@long) => true,
             nameof(PacketSchemaBuilder.@ulong) => true,
-            nameof(PacketSchemaBuilder.@single) => true,
+            nameof(PacketSchemaBuilder.@float) => true,
             nameof(PacketSchemaBuilder.@double) => true,
             nameof(PacketSchemaBuilder.@string) => true,
             _ => false
@@ -33,7 +33,7 @@ namespace GenPack {
             nameof(PacketSchemaBuilder.@uint) => "UInt32",
             nameof(PacketSchemaBuilder.@long) => "Int64",
             nameof(PacketSchemaBuilder.@ulong) => "UInt64",
-            nameof(PacketSchemaBuilder.@single) => "Single",
+            nameof(PacketSchemaBuilder.@float) => "Single",
             nameof(PacketSchemaBuilder.@double) => "Double",
             nameof(PacketSchemaBuilder.@string) => "String",
             _ => schemaType
