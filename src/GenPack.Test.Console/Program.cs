@@ -1,29 +1,27 @@
 ﻿using GenPack;
 using GenPack.Test.Console;
 
-var pb = PacketSchemaBuilder.Create();
-
-//var packetSchema = pb.Build();
-
-
-//var tc = new TestPacket();
-////tc.Print();
-
-//tc.Value3 = "123";
-//Console.WriteLine(tc.Value3);
-
-
-////var tc2 = new Test2Packet();
-////tc2.Print();
-
-//using var ms = new MemoryStream();
-//var sw = new BinaryWriter(ms);
-////sw.Write("123");
-
-var p = new TestPacket();
+Test1Packet p = new()
+{
+    Value1 = 0x10
+};
 
 using var ms = new MemoryStream();
 p.ToPacket(ms);
+var data = ms.ToArray();
+;
+
+var newP2 = Test1Packet.FromPacket(new MemoryStream(data));
+;
+
+
+[GenPackable]
+public partial class Test1Packet
+{
+    public readonly static PacketSchema Schema = PacketSchemaBuilder.Create()
+        .@byte("Value1", "값1")
+        .Build();
+}
 
 
 [GenPackable]

@@ -90,9 +90,12 @@ public class GenPackGenerator : IIncrementalGenerator
             var schemaBuilder = new StringBuilder();
             var schemaItems = ParseSchema(compilation, packetSchemaSyntax.DescendantNodes());
 
+            schemaBuilder.AppendLine("#pragma warning disable CS0219");
+            
             if (string.IsNullOrEmpty(@namespace) is false)
                 schemaBuilder.AppendLine($$"""
-                    namespace {{@namespace}} {
+                    namespace {{@namespace}}
+                    {
                     """);
 
             schemaBuilder.AppendLine($$"""
@@ -101,7 +104,7 @@ public class GenPackGenerator : IIncrementalGenerator
                 """);
 
             AddProperties(schemaBuilder, schemaItems);
-            AddMethods(schemaBuilder, schemaItems);
+            AddMethods(schemaBuilder, string.IsNullOrEmpty(@namespace) ? classSymbol.Name : $"{@namespace}.{classSymbol.Name}", schemaItems);
 
             schemaBuilder.AppendLine($$"""{{D(1)}}}""");
 
@@ -143,13 +146,13 @@ public class GenPackGenerator : IIncrementalGenerator
             if (schemaName is nameof(PacketSchemaBuilder.Build) is true)
                 break;
 
-            result.Add((schemaName, schemaType, PacketSchemaBuilder.IsDefaultType(schemaType), arguments));
+            result.Add((schemaName, schemaType, PacketSchema.IsDefaultType(schemaType), arguments));
         }
 
         return result;
     }
 
-    private static void AddMethods(StringBuilder sb, IReadOnlyList<SchemaItem> items)
+    private static void AddMethods(StringBuilder sb, string className, IReadOnlyList<SchemaItem> items)
     {
         if (items.Count is 0)
             return;
@@ -158,12 +161,21 @@ public class GenPackGenerator : IIncrementalGenerator
         var methods = items.Skip(1);
 
         addToPackMethod();
-        addFromPackMethod();
+        addFromPackMethod(className);
 
         // ------
 
         void addToPackMethod()
         {
+            sb.AppendLine($$"""
+                {{D(2)}}public byte[] ToPacket()
+                {{D(2)}}{
+                {{D(2)}}    using var ms = new System.IO.MemoryStream();
+                {{D(2)}}    ToPacket(ms);
+                {{D(2)}}    return ms.ToArray();
+                {{D(2)}}}
+                """);
+
             sb.AppendLine($$"""
                 {{D(2)}}public void ToPacket(System.IO.Stream stream)
                 {{D(2)}}{
@@ -262,8 +274,126 @@ public class GenPackGenerator : IIncrementalGenerator
             sb.AppendLine($$"""{{D(2)}}}""");
         }
 
-        void addFromPackMethod()
+        void addFromPackMethod(string className)
         {
+            sb.AppendLine($$"""
+                {{D(2)}}public static {{className}} FromPacket(byte[] data)
+                {{D(2)}}{
+                {{D(2)}}    using var ms = new System.IO.MemoryStream(data);
+                {{D(2)}}    return FromPacket(ms);
+                {{D(2)}}}
+                """);
+
+            sb.AppendLine($$"""
+                {{D(2)}}public static {{className}} FromPacket(System.IO.Stream stream)
+                {{D(2)}}{
+                {{D(2)}}    {{className}} result = new {{className}}();
+                {{D(2)}}    System.IO.BinaryReader reader = new System.IO.BinaryReader(stream);
+                {{D(2)}}    int size = 0;
+                {{D(2)}}    byte[] buffer = null;
+                """);
+
+
+            foreach (var item in methods)
+            {
+                switch (item.SchemaName)
+                {
+                    case nameof(PacketSchemaBuilder.@byte):
+                    case nameof(PacketSchemaBuilder.@sbyte):
+                    case nameof(PacketSchemaBuilder.@short):
+                    case nameof(PacketSchemaBuilder.@ushort):
+                    case nameof(PacketSchemaBuilder.@int):
+                    case nameof(PacketSchemaBuilder.@uint):
+                    case nameof(PacketSchemaBuilder.@long):
+                    case nameof(PacketSchemaBuilder.@ulong):
+                    case nameof(PacketSchemaBuilder.single):
+                    case nameof(PacketSchemaBuilder.@double):
+                    case nameof(PacketSchemaBuilder.@string):
+                        {
+                            sb.AppendLine($"{D(3)}result.{GetPropertyName(item)} = reader.Read{PacketSchema.GetClsType(item.SchemaType)}();");
+                        }
+                        break;
+                    case nameof(PacketSchemaBuilder.@object):
+                        {
+                            sb.AppendLine($"{D(3)}result.{GetPropertyName(item)} = {item.SchemaType}.FromPacket(stream);");
+                        }
+                        break;
+                    case nameof(PacketSchemaBuilder.@list):
+                        {
+                            var propertyName = GetPropertyName(item);
+                            var readMethod = item.IsDefaultType is true ? $"reader.Read{PacketSchema.GetClsType(item.SchemaType)}()" : $"{item.SchemaType}.FromPacket(stream)";
+
+                            sb.AppendLine($$"""
+                            {{D(3)}}size = reader.ReadInt32();
+                            {{D(3)}}for (var i = 0; i < size; i++)
+                            {{D(3)}}{
+                            {{D(3)}}    result.{{propertyName}}.Add({{readMethod}});
+                            {{D(3)}}}
+                            """);
+                        }
+                        break;
+                    case nameof(PacketSchemaBuilder.@dict):
+                        {
+                            var propertyName = GetPropertyName(item);
+                            var readMethod = item.IsDefaultType is true ? $"reader.Read{PacketSchema.GetClsType(item.SchemaType)}()" : $"{item.SchemaType}.FromPacket(stream)";
+
+                            sb.AppendLine($$"""
+                            {{D(3)}}size = reader.ReadInt32();
+                            {{D(3)}}for (var i = 0; i < size; i++)
+                            {{D(3)}}{
+                            {{D(3)}}    result.{{propertyName}}[reader.ReadString()] = {{readMethod}};
+                            {{D(3)}}}
+                            """);
+                        }
+                        break;
+
+                    case nameof(PacketSchemaBuilder.@array):
+                        {
+                            var propertyName = GetPropertyName(item);
+                            var readMethod = item.IsDefaultType is true ? $"reader.Read{PacketSchema.GetClsType(item.SchemaType)}()" : $"{item.SchemaType}.FromPacket(stream)";
+                            var length = int.Parse(item.Arguments[1].Expression.ToString());
+
+                            if (item.IsDefaultType is true)
+                            {
+                                // TODO: Read(Span<byte>)는 .NET Standard 2.0에서 지원하지 않으므로 차후 TargetFramework을 확인해서 적용할 수 있도록 수정해야 함
+                                //if (item.SchemaType is nameof(PacketSchemaBuilder.@byte))
+                                //{
+                                //    sb.AppendLine($"{D(3)}reader.Read(result.{propertyName}.AsSpan());");
+                                //    break;
+                                //}
+
+                                if (item.SchemaType is nameof(PacketSchemaBuilder.@byte))
+                                {
+                                    sb.AppendLine($$"""
+                                        {{D(3)}}buffer = reader.ReadBytes({{length}});
+                                        {{D(3)}}Array.Copy(buffer, result.{{propertyName}}, {{length}});
+                                        """);
+                                    break;
+                                }
+                            }
+
+                            sb.AppendLine($$"""
+                            {{D(3)}}size = reader.ReadInt32();
+                            {{D(3)}}for (var i = 0; i < size; i++)
+                            {{D(3)}}{
+                            {{D(3)}}    result.{{propertyName}}[i] = {{readMethod}};
+                            {{D(3)}}}
+                            """);
+                        }
+                        break;
+                    case nameof(PacketSchemaBuilder.BeginPointChecksum):
+                        break;
+                    case nameof(PacketSchemaBuilder.EndPointChecksum):
+                        break;
+                    case nameof(PacketSchemaBuilder.@checkum):
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            sb.AppendLine($$"""{{D(3)}}return result;""");
+            sb.AppendLine($$"""{{D(2)}}}""");
         }
     }
 
