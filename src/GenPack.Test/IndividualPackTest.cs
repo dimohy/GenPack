@@ -168,7 +168,7 @@ public class IndividualPackTest
         };
 
         var data = p.ToPacket();
-        Assert.True(data.SequenceEqual((byte[])[0x05, 0x00, 0x00, 0x00, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04, 0x00, 0x05, 0x00]));
+        Assert.True(data.SequenceEqual((byte[])[0x05, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04, 0x00, 0x05, 0x00]));
     }
 
     [Fact]
@@ -180,7 +180,7 @@ public class IndividualPackTest
         };
 
         var data = p.ToPacket();
-        Assert.True(data.SequenceEqual((byte[])[0x05, 0x00, 0x00, 0x00, 0x01, (byte)'a', 0x01, (byte)'b', 0x01, (byte)'c', 0x01, (byte)'d', 0x01, (byte)'e']));
+        Assert.True(data.SequenceEqual((byte[])[0x05, 0x01, (byte)'a', 0x01, (byte)'b', 0x01, (byte)'c', 0x01, (byte)'d', 0x01, (byte)'e']));
     }
 
     [Fact]
@@ -196,7 +196,7 @@ public class IndividualPackTest
         };
 
         var data = p.ToPacket();
-        Assert.True(data.SequenceEqual((byte[])[0x03, 0x00, 0x00, 0x00, 0x01, (byte)'a', 0x01, (byte)'b', 0x01, (byte)'c']));
+        Assert.True(data.SequenceEqual((byte[])[0x03, 0x01, (byte)'a', 0x01, (byte)'b', 0x01, (byte)'c']));
     }
 
     [Fact]
@@ -241,7 +241,7 @@ public class IndividualPackTest
         };
 
         var data = p.ToPacket();
-        Assert.True(data.SequenceEqual((byte[])[0x03, 0x00, 0x00, 0x00, 0x01, (byte)'a', 0x01, 0x00, 0x01, (byte)'b', 0x02, 0x00, 0x01, (byte)'c', 0x03, 0x00]));
+        Assert.True(data.SequenceEqual((byte[])[0x03, 0x01, (byte)'a', 0x01, 0x00, 0x01, (byte)'b', 0x02, 0x00, 0x01, (byte)'c', 0x03, 0x00]));
     }
 }
 

@@ -9,7 +9,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GenPack", "src\GenPack\GenP
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GenPack.SourceGenerator", "src\GenPack.SourceGenerator\GenPack.SourceGenerator.csproj", "{92B133DB-92C6-4FA1-AD03-D03131244142}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenPack.Test", "src\GenPack.Test\GenPack.Test.csproj", "{DB8C88E3-BAA4-44E6-AEAC-7A3639E55D4F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GenPack.Test", "src\GenPack.Test\GenPack.Test.csproj", "{DB8C88E3-BAA4-44E6-AEAC-7A3639E55D4F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenPack.Samples", "src\GenPack.Samples\GenPack.Samples.csproj", "{BEB3577D-0B25-4519-818F-16D312F48C25}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -42,6 +44,12 @@ Global
 		{DB8C88E3-BAA4-44E6-AEAC-7A3639E55D4F}.DEBUGGENERATOR|Any CPU.Build.0 = Debug|Any CPU
 		{DB8C88E3-BAA4-44E6-AEAC-7A3639E55D4F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DB8C88E3-BAA4-44E6-AEAC-7A3639E55D4F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BEB3577D-0B25-4519-818F-16D312F48C25}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BEB3577D-0B25-4519-818F-16D312F48C25}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BEB3577D-0B25-4519-818F-16D312F48C25}.DEBUGGENERATOR|Any CPU.ActiveCfg = Debug|Any CPU
+		{BEB3577D-0B25-4519-818F-16D312F48C25}.DEBUGGENERATOR|Any CPU.Build.0 = Debug|Any CPU
+		{BEB3577D-0B25-4519-818F-16D312F48C25}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BEB3577D-0B25-4519-818F-16D312F48C25}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

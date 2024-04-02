@@ -215,7 +215,7 @@ public class GenPackGenerator : IIncrementalGenerator
                             var writeMethod = item.IsDefaultType is true ? "writer.Write(item)" : "item.ToPacket(stream)";
 
                             sb.AppendLine($$"""
-                            {{D(3)}}writer.Write({{propertyName}}.Count);
+                            {{D(3)}}writer.Write7BitEncodedInt({{propertyName}}.Count);
                             {{D(3)}}foreach (var item in {{propertyName}})
                             {{D(3)}}{
                             {{D(3)}}    {{writeMethod}};
@@ -229,7 +229,7 @@ public class GenPackGenerator : IIncrementalGenerator
                             var writeMethod = item.IsDefaultType is true ? "writer.Write(item.Value)" : "item.Value.ToPacket(stream)";
 
                             sb.AppendLine($$"""
-                            {{D(3)}}writer.Write({{propertyName}}.Count);
+                            {{D(3)}}writer.Write7BitEncodedInt({{propertyName}}.Count);
                             {{D(3)}}foreach (var item in {{propertyName}})
                             {{D(3)}}{
                             {{D(3)}}    writer.Write(item.Key);
@@ -324,7 +324,7 @@ public class GenPackGenerator : IIncrementalGenerator
                             var readMethod = item.IsDefaultType is true ? $"reader.Read{PacketSchema.GetClsType(item.SchemaType)}()" : $"{item.SchemaType}.FromPacket(stream)";
 
                             sb.AppendLine($$"""
-                            {{D(3)}}size = reader.ReadInt32();
+                            {{D(3)}}size = reader.Read7BitEncodedInt();
                             {{D(3)}}for (var i = 0; i < size; i++)
                             {{D(3)}}{
                             {{D(3)}}    result.{{propertyName}}.Add({{readMethod}});
@@ -338,7 +338,7 @@ public class GenPackGenerator : IIncrementalGenerator
                             var readMethod = item.IsDefaultType is true ? $"reader.Read{PacketSchema.GetClsType(item.SchemaType)}()" : $"{item.SchemaType}.FromPacket(stream)";
 
                             sb.AppendLine($$"""
-                            {{D(3)}}size = reader.ReadInt32();
+                            {{D(3)}}size = reader.Read7BitEncodedInt();
                             {{D(3)}}for (var i = 0; i < size; i++)
                             {{D(3)}}{
                             {{D(3)}}    result.{{propertyName}}[reader.ReadString()] = {{readMethod}};
@@ -373,8 +373,7 @@ public class GenPackGenerator : IIncrementalGenerator
                             }
 
                             sb.AppendLine($$"""
-                            {{D(3)}}size = reader.ReadInt32();
-                            {{D(3)}}for (var i = 0; i < size; i++)
+                            {{D(3)}}for (var i = 0; i < {{length}}; i++)
                             {{D(3)}}{
                             {{D(3)}}    result.{{propertyName}}[i] = {{readMethod}};
                             {{D(3)}}}
@@ -610,5 +609,14 @@ public class GenPackGenerator : IIncrementalGenerator
         return nameSpace;
     }
 
-    private static string D(int depth) => new(' ', depth * 4);
+    private static string D(int depth) => depth switch
+    {
+        0 => "",
+        1 => "    ",
+        2 => "        ",
+        3 => "            ",
+        4 => "                ",
+        5 => "                    ",
+        _ => throw new ArgumentOutOfRangeException(nameof(depth))
+    };
 }
