@@ -109,22 +109,23 @@ p.Age = 32;
 ```
 
 ### Schema Properties
-| Property | Description         | Bits | Arguments                        |
-|----------|---------------------|------|----------------------------------|
-| @byte    | byte                |   8  | property name, description       |
-| @sbyte   | sign byte           |   8  | property name, description       |
-| @short   | short int           |  16  | property name, description       |
-| @ushort  | unsigned short int  |  16  | property name, description       |
-| @int     | int                 |  32  | property name, description       |
-| @uint    | unsigned int        |  32  | property name, description       |
-| @long    | long int            |  64  | property name, description       |
-| @ulong   | unsigned long int   |  64  | property name, description       |
-| @float   | single float        |  32  | property name, description       |
-| @double  | double float        |  64  | property name, description       |
-| @string  | string              |   N  | property name, description       |
-| @list    | variable list       |   N  | property name, description       |
-| @dict    | variable dictionary |   N  | property name, description       |
-| @array   | fixed array         |   N  | property name, size, description |
+| Property | Description         | Bits | Arguments                            |
+|----------|---------------------|------|--------------------------------------|
+| @byte    | byte                |   8  | property name, description           |
+| @sbyte   | sign byte           |   8  | property name, description           |
+| @short   | short int           |  16  | property name, description           |
+| @ushort  | unsigned short int  |  16  | property name, description           |
+| @int     | int                 |  32  | property name, description           |
+| @uint    | unsigned int        |  32  | property name, description           |
+| @long    | long int            |  64  | property name, description           |
+| @ulong   | unsigned long int   |  64  | property name, description           |
+| @float   | single float        |  32  | property name, description           |
+| @double  | double float        |  64  | property name, description           |
+| @string  | string              |   N  | property name, description           |
+| @object  | genpackable type    |   N  | <type>, property name, description   |
+| @list    | variable list       |   N  | property name, description           |
+| @dict    | variable dictionary |   N  | property name, description           |
+| @array   | fixed array         |   N  | property name, size, description     |
 
 ## Tasks
 - [ ] Support for Endian.
