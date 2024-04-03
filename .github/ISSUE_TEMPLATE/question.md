@@ -1,5 +1,5 @@
 ---
-name: Question template
+name: Question
 about: Ask questions about the project.
 title: "[Q&A] "
 labels: question
