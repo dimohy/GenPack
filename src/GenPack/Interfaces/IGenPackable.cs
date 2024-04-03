@@ -1,5 +1,5 @@
 ﻿namespace GenPack;
 
-public class IGenPackable
+public interface IGenPackable
 {
 }

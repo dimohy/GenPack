@@ -11,7 +11,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GenPack.SourceGenerator", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GenPack.Test", "src\GenPack.Test\GenPack.Test.csproj", "{DB8C88E3-BAA4-44E6-AEAC-7A3639E55D4F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenPack.Samples", "src\GenPack.Samples\GenPack.Samples.csproj", "{BEB3577D-0B25-4519-818F-16D312F48C25}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GenPack.Samples", "src\GenPack.Samples\GenPack.Samples.csproj", "{BEB3577D-0B25-4519-818F-16D312F48C25}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "솔루션 항목", "솔루션 항목", "{040352C2-63CE-4891-BB6A-90781C836846}"
+	ProjectSection(SolutionItems) = preProject
+		logo.png = logo.png
+		README.md = README.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

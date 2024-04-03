@@ -35,12 +35,13 @@ public class GenPackGenerator : IIncrementalGenerator
 
         // ------
 
-        static bool IsSyntaxTargetForGeneration(SyntaxNode node) => node is ClassDeclarationSyntax m && m.AttributeLists.Count > 0;
-        static ClassDeclarationSyntax? GetSemanticTargetForGeneration(GeneratorSyntaxContext context)
+        static bool IsSyntaxTargetForGeneration(SyntaxNode node) => node is ClassDeclarationSyntax or RecordDeclarationSyntax && (node as TypeDeclarationSyntax)!.AttributeLists.Count > 0;
+        static TypeDeclarationSyntax? GetSemanticTargetForGeneration(GeneratorSyntaxContext context)
         {
-            if (context.Node is ClassDeclarationSyntax classDeclaration)
+            if (context.Node is ClassDeclarationSyntax or RecordDeclarationSyntax)
             {
-                foreach (var attributeList in classDeclaration.AttributeLists)
+                var typeDeclaration = (context.Node as TypeDeclarationSyntax)!;
+                foreach (var attributeList in typeDeclaration.AttributeLists)
                 {
                     foreach (var attribute in attributeList.Attributes)
                     {
@@ -50,7 +51,7 @@ public class GenPackGenerator : IIncrementalGenerator
                         var attributeContainingType = attributeSymbol.ContainingType;
                         var fullname = attributeContainingType.ToDisplayString();
                         if (fullname is $"{nameof(GenPack)}.{nameof(GenPackableAttribute)}")
-                            return classDeclaration;
+                            return typeDeclaration;
                     }
                 }
             }
@@ -59,7 +60,7 @@ public class GenPackGenerator : IIncrementalGenerator
         }
     }
 
-    private static void Execute(Compilation compilation, ImmutableArray<ClassDeclarationSyntax?> classes, SourceProductionContext context)
+    private static void Execute(Compilation compilation, ImmutableArray<TypeDeclarationSyntax?> classes, SourceProductionContext context)
     {
         if (classes.IsDefaultOrEmpty == true)
             return;
@@ -99,7 +100,7 @@ public class GenPackGenerator : IIncrementalGenerator
                     """);
 
             schemaBuilder.AppendLine($$"""
-                {{D(1)}}public partial class {{classSymbol.Name}} : GenPack.IGenPackable
+                {{D(1)}}public partial {{(@class is ClassDeclarationSyntax ? "class" : "record")}} {{classSymbol.Name}} : GenPack.IGenPackable
                 {{D(1)}}{
                 """);
 
