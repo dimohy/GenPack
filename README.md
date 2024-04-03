@@ -78,8 +78,8 @@ PeoplePacket { Age = 10, Name = John }
 ```
 
 ## How to create a packet schema
-Decorate the attribute of `class' or `record' with `GenPackable'. At this point, the target must be given `partial`.
-GenPack's packet schema is represented by creating a 'PacketSchema` using the 'PacketSchemaBuilder'.
+Decorate the attribute of `class` or `record` with `GenPackable`. At this point, the target must be given `partial`.
+GenPack's packet schema is represented by creating a `PacketSchema` using the `PacketSchemaBuilder`.
 
 ```csharp
 [GenPackable]
