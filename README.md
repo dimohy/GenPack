@@ -140,5 +140,8 @@ p.Age = 32;
 - [ ] Process structures with complex packets, such as PLCs.
 - [ ] Process packets that require speed, such as `MemoryPack`.
 
+------
+
 <img src="logo.png" width="32" height="32">
+
 [Icon creator: Freepik - Flaticon](https://www.flaticon.com/kr/free-icons/)
