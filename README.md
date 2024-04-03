@@ -1,4 +1,4 @@
-![title](logo.png){: width="50%" height="50%"}
+<img src="logo.png" width="128" height="128">
 
 # GenPack
 
@@ -139,3 +139,6 @@ p.Age = 32;
 - [ ] Process device packets with uncomplicated packet structures.
 - [ ] Process structures with complex packets, such as PLCs.
 - [ ] Process packets that require speed, such as `MemoryPack`.
+
+<img src="logo.png" width="32" height="32">
+[Icon creator: Freepik - Flaticon](https://www.flaticon.com/kr/free-icons/)
