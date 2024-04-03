@@ -123,9 +123,9 @@ p.Age = 32;
 | @double         | double float        |  64  | property name, description       |
 | @string         | string              |   N  | property name, description       |
 | @object\<type\> | genpackable object  |   N  | property name, description       |
-| @list           | variable list       |   N  | property name, description       |
-| @dict           | variable dictionary |   N  | property name, description       |
-| @array          | fixed array         |   N  | property name, size, description |
+| @list\<type\>   | variable list       |   N  | property name, description       |
+| @dict\<type\>   | variable dictionary |   N  | property name, description       |
+| @array\<type\>  | fixed array         |   N  | property name, size, description |
 
 ## Tasks
 - [ ] Support for Endian.
