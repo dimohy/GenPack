@@ -112,7 +112,7 @@ p.Age = 32;
 | Property        | Description         | Bits | Arguments                        |
 |-----------------|---------------------|------|----------------------------------|
 | @byte           | byte                |   8  | property name, description       |
-| @sbyte          | sign byte           |   8  | property name, description       |
+| @sbyte          | signedyte           |   8  | property name, description       |
 | @short          | short int           |  16  | property name, description       |
 | @ushort         | unsigned short int  |  16  | property name, description       |
 | @int            | int                 |  32  | property name, description       |
