@@ -144,4 +144,4 @@ p.Age = 32;
 
 <img src="logo.png" width="32" height="32">
 
-[Icon creator: Freepik - Flaticon](https://www.flaticon.com/kr/free-icons/)
+[Icon creator: Freepik - Flaticon](https://www.flaticon.com/kr/free-icon/blocks_2021305)
