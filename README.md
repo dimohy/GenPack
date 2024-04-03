@@ -1,6 +1,8 @@
 <img src="logo.png" width="128" height="128">
 
 # GenPack
+[![latest version](https://img.shields.io/nuget/v/GenPack)](https://www.nuget.org/packages/GenPack)
+[![downloads](https://img.shields.io/nuget/dt/GenPack)](https://www.nuget.org/packages/GenPack)
 
 GenPack is a library that uses the .NET source generator to automatically generate packets as classes once you define a schema for the packets.
 It's easy to use and the results are useful.
