@@ -128,7 +128,7 @@ p.Age = 32;
 | @array\<type\>  | fixed array         |   N  | property name, size, description |
 
 ## Tasks
-- [ ] Support for Endian.
+- [ ] Support for Endian, string Encoding.
 - [ ] Support for checksums.
 - [ ] Support 8-bit, 16-bit, 32-bit, 64-bit, or variable 7-bit sizes for `@list` and `@dict`.
 - [ ] Automatically select and deserialize target structures based on packet command(identification code).
