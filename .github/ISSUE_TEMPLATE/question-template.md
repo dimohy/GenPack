@@ -1,7 +1,7 @@
 ---
 name: Question template
 about: Ask questions about the project.
-title: ''
+title: "[Q&A] "
 labels: question
 assignees: ''
 
