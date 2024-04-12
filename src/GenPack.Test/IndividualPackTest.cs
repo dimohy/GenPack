@@ -1,10 +1,11 @@
-using System.Linq;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace GenPack.Test;
 
+[TestClass]
 public class IndividualPackTest
 {
-    [Fact]
+    [TestMethod]
     public void TestBytePacket()
     {
         var p = new TestBytePacket
@@ -13,10 +14,10 @@ public class IndividualPackTest
         };
 
         var data = p.ToPacket();
-        Assert.True(data.SequenceEqual((byte[])[10]));
+        Assert.IsTrue(data.SequenceEqual((byte[])[10]));
     }
 
-    [Fact]
+    [TestMethod]
     public void TestSBytePacket()
     {
         var p = new TestSBytePacket
@@ -25,10 +26,10 @@ public class IndividualPackTest
         };
 
         var data = p.ToPacket();
-        Assert.True(data.SequenceEqual((byte[])[0xFE]));
+        Assert.IsTrue(data.SequenceEqual((byte[])[0xFE]));
     }
 
-    [Fact]
+    [TestMethod]
     public void TestInt16Packet()
     {
         var p = new TestInt16Packet
@@ -37,10 +38,10 @@ public class IndividualPackTest
         };
 
         var data = p.ToPacket();
-        Assert.True(data.SequenceEqual((byte[])[0x0B, 0x0A]));
+        Assert.IsTrue(data.SequenceEqual((byte[])[0x0B, 0x0A]));
     }
 
-    [Fact]
+    [TestMethod]
     public void TestUInt16Packet()
     {
         var p = new TestUInt16Packet
@@ -49,10 +50,10 @@ public class IndividualPackTest
         };
 
         var data = p.ToPacket();
-        Assert.True(data.SequenceEqual((byte[])[0xFE, 0xFF]));
+        Assert.IsTrue(data.SequenceEqual((byte[])[0xFE, 0xFF]));
     }
 
-    [Fact]
+    [TestMethod]
     public void TestInt32Packet()
     {
         var p = new TestInt32Packet
@@ -61,10 +62,10 @@ public class IndividualPackTest
         };
 
         var data = p.ToPacket();
-        Assert.True(data.SequenceEqual((byte[])[0x0D, 0x0C, 0x0B, 0x0A]));
+        Assert.IsTrue(data.SequenceEqual((byte[])[0x0D, 0x0C, 0x0B, 0x0A]));
     }
 
-    [Fact]
+    [TestMethod]
     public void TestUInt32Packet()
     {
         var p = new TestUInt32Packet
@@ -73,10 +74,10 @@ public class IndividualPackTest
         };
 
         var data = p.ToPacket();
-        Assert.True(data.SequenceEqual((byte[])[0xFE, 0xFF, 0xFF, 0xFF]));
+        Assert.IsTrue(data.SequenceEqual((byte[])[0xFE, 0xFF, 0xFF, 0xFF]));
     }
 
-    [Fact]
+    [TestMethod]
     public void TestInt64Packet()
     {
         var p = new TestInt64Packet
@@ -85,10 +86,10 @@ public class IndividualPackTest
         };
 
         var data = p.ToPacket();
-        Assert.True(data.SequenceEqual((byte[])[0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01]));
+        Assert.IsTrue(data.SequenceEqual((byte[])[0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01]));
     }
 
-    [Fact]
+    [TestMethod]
     public void TestUInt64Packet()
     {
         var p = new TestUInt64Packet
@@ -97,10 +98,10 @@ public class IndividualPackTest
         };
 
         var data = p.ToPacket();
-        Assert.True(data.SequenceEqual((byte[])[0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]));
+        Assert.IsTrue(data.SequenceEqual((byte[])[0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]));
     }
 
-    [Fact]
+    [TestMethod]
     public void TestSinglePacket()
     {
         var p = new TestSinglePacket
@@ -109,11 +110,11 @@ public class IndividualPackTest
         };
 
         var data = p.ToPacket();
-        Assert.True(data.SequenceEqual((byte[])[0xC3, 0xF5, 0x48, 0x40]));
+        Assert.IsTrue(data.SequenceEqual((byte[])[0xC3, 0xF5, 0x48, 0x40]));
     }
 
 
-    [Fact]
+    [TestMethod]
     public void TestDoublePacket()
     {
         var p = new TestDoublePacket
@@ -122,10 +123,10 @@ public class IndividualPackTest
         };
 
         var data = p.ToPacket();
-        Assert.True(data.SequenceEqual((byte[])[0x7A, 0x00, 0x8B, 0xFC, 0xFA, 0x21, 0x09, 0x40]));
+        Assert.IsTrue(data.SequenceEqual((byte[])[0x7A, 0x00, 0x8B, 0xFC, 0xFA, 0x21, 0x09, 0x40]));
     }
 
-    [Fact]
+    [TestMethod]
     public void TestStringPacket()
     {
         var p = new TestStringPacket
@@ -134,17 +135,17 @@ public class IndividualPackTest
         };
 
         var data = p.ToPacket();
-        Assert.True(data.SequenceEqual((byte[])[0x04, (byte)'t', (byte)'e', (byte)'s', (byte)'t']));
+        Assert.IsTrue(data.SequenceEqual((byte[])[0x04, (byte)'t', (byte)'e', (byte)'s', (byte)'t']));
 
         var p2 = new TestStringPacket
         {
             Value1 = new string('0', 128)
         };
         data = p2.ToPacket();
-        Assert.True(data.SequenceEqual((byte[])[0x80, 0x01, .. Enumerable.Repeat((byte)'0', 128)]));
+        Assert.IsTrue(data.SequenceEqual((byte[])[0x80, 0x01, .. Enumerable.Repeat((byte)'0', 128)]));
     }
 
-    [Fact]
+    [TestMethod]
     public void TestObjectPacket()
     {
         var p = new TestObjectPacket
@@ -156,10 +157,10 @@ public class IndividualPackTest
         };
 
         var data = p.ToPacket();
-        Assert.True(data.SequenceEqual((byte[])[0x04, (byte)'t', (byte)'e', (byte)'s', (byte)'t']));
+        Assert.IsTrue(data.SequenceEqual((byte[])[0x04, (byte)'t', (byte)'e', (byte)'s', (byte)'t']));
     }
 
-    [Fact]
+    [TestMethod]
     public void TestInt16ListPacket()
     {
         var p = new TestInt16ListPacket
@@ -168,10 +169,10 @@ public class IndividualPackTest
         };
 
         var data = p.ToPacket();
-        Assert.True(data.SequenceEqual((byte[])[0x05, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04, 0x00, 0x05, 0x00]));
+        Assert.IsTrue(data.SequenceEqual((byte[])[0x05, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04, 0x00, 0x05, 0x00]));
     }
 
-    [Fact]
+    [TestMethod]
     public void TestStringListPacket()
     {
         var p = new TestStringListPacket
@@ -180,10 +181,10 @@ public class IndividualPackTest
         };
 
         var data = p.ToPacket();
-        Assert.True(data.SequenceEqual((byte[])[0x05, 0x01, (byte)'a', 0x01, (byte)'b', 0x01, (byte)'c', 0x01, (byte)'d', 0x01, (byte)'e']));
+        Assert.IsTrue(data.SequenceEqual((byte[])[0x05, 0x01, (byte)'a', 0x01, (byte)'b', 0x01, (byte)'c', 0x01, (byte)'d', 0x01, (byte)'e']));
     }
 
-    [Fact]
+    [TestMethod]
     public void TestObjectListPacket()
     {
         var p = new TestObjectListPacket
@@ -196,10 +197,10 @@ public class IndividualPackTest
         };
 
         var data = p.ToPacket();
-        Assert.True(data.SequenceEqual((byte[])[0x03, 0x01, (byte)'a', 0x01, (byte)'b', 0x01, (byte)'c']));
+        Assert.IsTrue(data.SequenceEqual((byte[])[0x03, 0x01, (byte)'a', 0x01, (byte)'b', 0x01, (byte)'c']));
     }
 
-    [Fact]
+    [TestMethod]
     public void TestByteArrayPacket()
     {
         var p = new TestByteArrayPacket();
@@ -207,10 +208,10 @@ public class IndividualPackTest
         Array.Copy(bytes, p.Value1, bytes.Length);
 
         var data = p.ToPacket();
-        Assert.True(data.SequenceEqual(bytes));
+        Assert.IsTrue(data.SequenceEqual(bytes));
     }
 
-    [Fact]
+    [TestMethod]
     public void TestInt16ArrayPacket()
     {
         var p = new TestInt16ArrayPacket();
@@ -218,10 +219,10 @@ public class IndividualPackTest
         Array.Copy(shorts, p.Value1, shorts.Length);
 
         var data = p.ToPacket();
-        Assert.True(data.SequenceEqual((byte[])[1, 0x00, 2, 0x00, 3, 0x00, 4, 0x00, 5, 0x00, 6, 0x00, 7, 0x00, 8, 0x00, 9, 0x00, 10, 0x00, 11, 0x00, 12, 0x00, 13, 0x00, 14, 0x00, 15, 0x00, 16, 0x00, 17, 0x00, 18, 0x00, 19, 0x00, 20, 0x00, 21, 0x00, 22, 0x00, 23, 0x00, 24, 0x00, 25, 0x00, 26, 0x00, 27, 0x00, 28, 0x00, 29, 0x00, 30, 0x00, 31, 0x00, 32, 0x00, 33, 0x00, 34, 0x00, 35, 0x00, 36, 0x00, 37, 0x00, 38, 0x00, 39, 0x00, 40, 0x00, 41, 0x00, 42, 0x00, 43, 0x00, 44, 0x00, 45, 0x00, 46, 0x00, 47, 0x00, 48, 0x00, 49, 0x00, 50, 0x00,]));
+        Assert.IsTrue(data.SequenceEqual((byte[])[1, 0x00, 2, 0x00, 3, 0x00, 4, 0x00, 5, 0x00, 6, 0x00, 7, 0x00, 8, 0x00, 9, 0x00, 10, 0x00, 11, 0x00, 12, 0x00, 13, 0x00, 14, 0x00, 15, 0x00, 16, 0x00, 17, 0x00, 18, 0x00, 19, 0x00, 20, 0x00, 21, 0x00, 22, 0x00, 23, 0x00, 24, 0x00, 25, 0x00, 26, 0x00, 27, 0x00, 28, 0x00, 29, 0x00, 30, 0x00, 31, 0x00, 32, 0x00, 33, 0x00, 34, 0x00, 35, 0x00, 36, 0x00, 37, 0x00, 38, 0x00, 39, 0x00, 40, 0x00, 41, 0x00, 42, 0x00, 43, 0x00, 44, 0x00, 45, 0x00, 46, 0x00, 47, 0x00, 48, 0x00, 49, 0x00, 50, 0x00,]));
     }
 
-    [Fact]
+    [TestMethod]
     public void TestStringArrayPacket()
     {
         var p = new TestStringArrayPacket();
@@ -229,10 +230,10 @@ public class IndividualPackTest
         Array.Copy(strings, p.Value1, strings.Length);
 
         var data = p.ToPacket();
-        Assert.True(data.SequenceEqual((byte[])[0x01, (byte)'a', 0x01, (byte)'b', 0x01, (byte)'c', 0x01, (byte)'d', 0x01, (byte)'e']));
+        Assert.IsTrue(data.SequenceEqual((byte[])[0x01, (byte)'a', 0x01, (byte)'b', 0x01, (byte)'c', 0x01, (byte)'d', 0x01, (byte)'e']));
     }
 
-    [Fact]
+    [TestMethod]
     public void TestInt16DickPacket()
     {
         var p = new TestInt16DickPacket
@@ -241,7 +242,7 @@ public class IndividualPackTest
         };
 
         var data = p.ToPacket();
-        Assert.True(data.SequenceEqual((byte[])[0x03, 0x01, (byte)'a', 0x01, 0x00, 0x01, (byte)'b', 0x02, 0x00, 0x01, (byte)'c', 0x03, 0x00]));
+        Assert.IsTrue(data.SequenceEqual((byte[])[0x03, 0x01, (byte)'a', 0x01, 0x00, 0x01, (byte)'b', 0x02, 0x00, 0x01, (byte)'c', 0x03, 0x00]));
     }
 }
 
