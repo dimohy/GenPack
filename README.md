@@ -1,6 +1,8 @@
-![title](logo.png){: width="50%" height="50%"}
+<img src="logo.png" width="128" height="128">
 
 # GenPack
+[![latest version](https://img.shields.io/nuget/v/GenPack)](https://www.nuget.org/packages/GenPack)
+[![downloads](https://img.shields.io/nuget/dt/GenPack)](https://www.nuget.org/packages/GenPack)
 
 GenPack is a library that uses the .NET source generator to automatically generate packets as classes once you define a schema for the packets.
 It's easy to use and the results are useful.
@@ -115,7 +117,7 @@ p.Age = 32;
 | Property        | Description         | Bits | Arguments                        |
 |-----------------|---------------------|------|----------------------------------|
 | @byte           | byte                |   8  | property name, description       |
-| @sbyte          | signedyte           |   8  | property name, description       |
+| @sbyte          | signed byte           |   8  | property name, description       |
 | @short          | short int           |  16  | property name, description       |
 | @ushort         | unsigned short int  |  16  | property name, description       |
 | @int            | int                 |  32  | property name, description       |
@@ -134,8 +136,15 @@ p.Age = 32;
 - [ ] Support for Endian, string Encoding.
 - [ ] Support for checksums.
 - [ ] Support 8-bit, 16-bit, 32-bit, 64-bit, or variable 7-bit sizes for `@list` and `@dict`.
+- [ ] Add `@ver` property to allow revision control of packets.
 - [ ] Automatically select and deserialize target structures based on packet command(identification code).
 - [ ] Generate JSON and gRPC schema with `PacketSchema`.
 - [ ] Process device packets with uncomplicated packet structures.
 - [ ] Process structures with complex packets, such as PLCs.
 - [ ] Process packets that require speed, such as `MemoryPack`.
+
+------
+
+<img src="logo.png" width="32" height="32">
+
+[Icon creator: Freepik - Flaticon](https://www.flaticon.com/kr/free-icon/blocks_2021305)
