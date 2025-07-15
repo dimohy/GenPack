@@ -160,6 +160,27 @@ public class EndianAwareBinaryReader : IDisposable
 
     #endregion
 
+    #region Size Reading Methods
+
+    /// <summary>
+    /// Reads size information using the specified size mode
+    /// </summary>
+    /// <param name="sizeMode">The encoding mode for the size</param>
+    /// <returns>The size value as an integer</returns>
+    public int ReadSize(SizeMode sizeMode)
+    {
+        return sizeMode switch
+        {
+            SizeMode.Variable7Bit => Read7BitEncodedInt(),
+            SizeMode.Fixed8Bit => ReadByte(),
+            SizeMode.Fixed16Bit => ReadUInt16(),
+            SizeMode.Fixed32Bit => ReadInt32(),
+            _ => throw new ArgumentOutOfRangeException(nameof(sizeMode), sizeMode, "Invalid size mode")
+        };
+    }
+
+    #endregion
+
     public byte ReadByte() 
     {
         var data = ReadWithChecksum(1);

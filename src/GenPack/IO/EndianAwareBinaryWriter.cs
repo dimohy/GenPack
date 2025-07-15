@@ -145,6 +145,40 @@ public class EndianAwareBinaryWriter : IDisposable
 
     #endregion
 
+    #region Size Writing Methods
+
+    /// <summary>
+    /// Writes size information using the specified size mode
+    /// </summary>
+    /// <param name="size">The size value to write</param>
+    /// <param name="sizeMode">The encoding mode for the size</param>
+    public void WriteSize(int size, SizeMode sizeMode)
+    {
+        switch (sizeMode)
+        {
+            case SizeMode.Variable7Bit:
+                Write7BitEncodedInt(size);
+                break;
+            case SizeMode.Fixed8Bit:
+                if (size > byte.MaxValue)
+                    throw new ArgumentOutOfRangeException(nameof(size), $"Size {size} exceeds maximum for 8-bit encoding ({byte.MaxValue})");
+                Write((byte)size);
+                break;
+            case SizeMode.Fixed16Bit:
+                if (size > ushort.MaxValue)
+                    throw new ArgumentOutOfRangeException(nameof(size), $"Size {size} exceeds maximum for 16-bit encoding ({ushort.MaxValue})");
+                Write((ushort)size);
+                break;
+            case SizeMode.Fixed32Bit:
+                Write(size);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(sizeMode), sizeMode, "Invalid size mode");
+        }
+    }
+
+    #endregion
+
     public void Write(byte value) 
     {
         var data = new[] { value };

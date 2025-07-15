@@ -272,29 +272,60 @@ public class GenPackGenerator : IIncrementalGenerator
                     {
                         var propertyName = GetPropertyName(item);
                         var writeMethod = item.IsDefaultType is true ? "writer.Write(item)" : "item.ToPacket(writer)";
+                        var sizeMode = GetSizeMode(item);
 
-                        sb.AppendLine($$"""
-                        {{D(3)}}writer.Write7BitEncodedInt({{propertyName}}.Count);
-                        {{D(3)}}foreach (var item in {{propertyName}})
-                        {{D(3)}}{
-                        {{D(3)}}    {{writeMethod}};
-                        {{D(3)}}}
-                        """);
+                        // Use the appropriate write method based on size mode
+                        if (sizeMode == "GenPack.SizeMode.Variable7Bit")
+                        {
+                            sb.AppendLine($$"""
+                            {{D(3)}}writer.Write7BitEncodedInt({{propertyName}}.Count);
+                            {{D(3)}}foreach (var item in {{propertyName}})
+                            {{D(3)}}{
+                            {{D(3)}}    {{writeMethod}};
+                            {{D(3)}}}
+                            """);
+                        }
+                        else
+                        {
+                            sb.AppendLine($$"""
+                            {{D(3)}}writer.WriteSize({{propertyName}}.Count, {{sizeMode}});
+                            {{D(3)}}foreach (var item in {{propertyName}})
+                            {{D(3)}}{
+                            {{D(3)}}    {{writeMethod}};
+                            {{D(3)}}}
+                            """);
+                        }
                     }
                     break;
                 case nameof(PacketSchemaBuilder.@dict):
                     {
                         var propertyName = GetPropertyName(item);
                         var writeMethod = item.IsDefaultType is true ? "writer.Write(item.Value)" : "item.Value.ToPacket(writer)";
+                        var sizeMode = GetSizeMode(item);
 
-                        sb.AppendLine($$"""
-                        {{D(3)}}writer.Write7BitEncodedInt({{propertyName}}.Count);
-                        {{D(3)}}foreach (var item in {{propertyName}})
-                        {{D(3)}}{
-                        {{D(3)}}    writer.Write(item.Key);
-                        {{D(3)}}    {{writeMethod}};
-                        {{D(3)}}}
-                        """);
+                        // Use the appropriate write method based on size mode
+                        if (sizeMode == "GenPack.SizeMode.Variable7Bit")
+                        {
+                            sb.AppendLine($$"""
+                            {{D(3)}}writer.Write7BitEncodedInt({{propertyName}}.Count);
+                            {{D(3)}}foreach (var item in {{propertyName}})
+                            {{D(3)}}{
+                            {{D(3)}}    writer.Write(item.Key);
+                            {{D(3)}}    {{writeMethod}};
+                            {{D(3)}}}
+                            """);
+                        }
+                        else
+                        {
+                            sb.AppendLine($$"""
+                            {{D(3)}}writer.WriteSize({{propertyName}}.Count, {{sizeMode}});
+                            {{D(3)}}foreach (var item in {{propertyName}})
+                            {{D(3)}}{
+                            {{D(3)}}    writer.Write(item.Key);
+                            {{D(3)}}    {{writeMethod}};
+                            {{D(3)}}}
+                            """);
+                        }
                     }
                     break;
                 case nameof(PacketSchemaBuilder.@array):
@@ -439,28 +470,58 @@ public class GenPackGenerator : IIncrementalGenerator
                     {
                         var propertyName = GetPropertyName(item);
                         var readMethod = item.IsDefaultType is true ? GetReadMethod(item.SchemaType) : $"{item.SchemaType}.FromPacket(reader)";
+                        var sizeMode = GetSizeMode(item);
 
-                        sb.AppendLine($$"""
-                        {{D(3)}}size = reader.Read7BitEncodedInt();
-                        {{D(3)}}for (var i = 0; i < size; i++)
-                        {{D(3)}}{
-                        {{D(3)}}    result.{{propertyName}}.Add({{readMethod}});
-                        {{D(3)}}}
-                        """);
+                        // Use the appropriate read method based on size mode
+                        if (sizeMode == "GenPack.SizeMode.Variable7Bit")
+                        {
+                            sb.AppendLine($$"""
+                            {{D(3)}}size = reader.Read7BitEncodedInt();
+                            {{D(3)}}for (var i = 0; i < size; i++)
+                            {{D(3)}}{
+                            {{D(3)}}    result.{{propertyName}}.Add({{readMethod}});
+                            {{D(3)}}}
+                            """);
+                        }
+                        else
+                        {
+                            sb.AppendLine($$"""
+                            {{D(3)}}size = reader.ReadSize({{sizeMode}});
+                            {{D(3)}}for (var i = 0; i < size; i++)
+                            {{D(3)}}{
+                            {{D(3)}}    result.{{propertyName}}.Add({{readMethod}});
+                            {{D(3)}}}
+                            """);
+                        }
                     }
                     break;
                 case nameof(PacketSchemaBuilder.@dict):
                     {
                         var propertyName = GetPropertyName(item);
                         var readMethod = item.IsDefaultType is true ? GetReadMethod(item.SchemaType) : $"{item.SchemaType}.FromPacket(reader)";
+                        var sizeMode = GetSizeMode(item);
 
-                        sb.AppendLine($$"""
-                        {{D(3)}}size = reader.Read7BitEncodedInt();
-                        {{D(3)}}for (var i = 0; i < size; i++)
-                        {{D(3)}}{
-                        {{D(3)}}    result.{{propertyName}}[reader.ReadString()] = {{readMethod}};
-                        {{D(3)}}}
-                        """);
+                        // Use the appropriate read method based on size mode
+                        if (sizeMode == "GenPack.SizeMode.Variable7Bit")
+                        {
+                            sb.AppendLine($$"""
+                            {{D(3)}}size = reader.Read7BitEncodedInt();
+                            {{D(3)}}for (var i = 0; i < size; i++)
+                            {{D(3)}}{
+                            {{D(3)}}    result.{{propertyName}}[reader.ReadString()] = {{readMethod}};
+                            {{D(3)}}}
+                            """);
+                        }
+                        else
+                        {
+                            sb.AppendLine($$"""
+                            {{D(3)}}size = reader.ReadSize({{sizeMode}});
+                            {{D(3)}}for (var i = 0; i < size; i++)
+                            {{D(3)}}{
+                            {{D(3)}}    result.{{propertyName}}[reader.ReadString()] = {{readMethod}};
+                            {{D(3)}}}
+                            """);
+                        }
                     }
                     break;
                 case nameof(PacketSchemaBuilder.@array):
@@ -554,6 +615,42 @@ public class GenPackGenerator : IIncrementalGenerator
     };
 
     private static string GetPropertyName(SchemaItem item) => item.Arguments[0].Expression.ToString()[1..^1];
+
+    /// <summary>
+    /// Extracts the SizeMode from schema item arguments
+    /// </summary>
+    /// <param name="item">The schema item to extract SizeMode from</param>
+    /// <returns>The SizeMode string or default Variable7Bit</returns>
+    private static string GetSizeMode(SchemaItem item)
+    {
+        // For @list and @dict, check if SizeMode is specified as second argument (after property name)
+        if ((item.SchemaName == nameof(PacketSchemaBuilder.@list) || item.SchemaName == nameof(PacketSchemaBuilder.@dict)) && 
+            item.Arguments.Length >= 2)
+        {
+            var sizeArgument = item.Arguments[1].Expression.ToString();
+            
+            // Check if the argument looks like a SizeMode enum value - must contain actual enum identifiers
+            if (sizeArgument.Contains("SizeMode.") || 
+                sizeArgument == "Fixed8Bit" || sizeArgument == "Fixed16Bit" || 
+                sizeArgument == "Fixed32Bit" || sizeArgument == "Variable7Bit")
+            {
+                // Ensure SizeMode has GenPack namespace prefix
+                if (!sizeArgument.Contains("GenPack.") && sizeArgument.Contains("SizeMode."))
+                {
+                    return $"GenPack.{sizeArgument}";
+                }
+                else if (!sizeArgument.Contains(".") && (sizeArgument == "Fixed8Bit" || sizeArgument == "Fixed16Bit" || 
+                         sizeArgument == "Fixed32Bit" || sizeArgument == "Variable7Bit"))
+                {
+                    return $"GenPack.SizeMode.{sizeArgument}";
+                }
+                return sizeArgument;
+            }
+        }
+        
+        // Default to Variable7Bit if not specified or if second argument is description string
+        return "GenPack.SizeMode.Variable7Bit";
+    }
     
     private static void AddProperties(StringBuilder sb, IReadOnlyList<SchemaItem> items)
     {
@@ -658,17 +755,34 @@ public class GenPackGenerator : IIncrementalGenerator
         var defaultSet = $" = new List<{@type}>();";
         var propertyName = item.Arguments[0].Expression.ToString()[1..^1];
 
+        // Find the description argument - it might be at different positions depending on whether SizeMode is specified
+        string desc = "";
         if (item.Arguments.Length > 1)
         {
-            var desc = item.Arguments[1].Expression.ToString()[1..^1];
-            if (string.IsNullOrWhiteSpace(desc) is false)
+            // Check if second argument is SizeMode or description
+            var secondArg = item.Arguments[1].Expression.ToString();
+            if (secondArg.Contains("SizeMode.") || secondArg.Contains("Fixed") || secondArg.Contains("Variable"))
             {
-                sb.AppendLine($$"""
-                            {{D(2)}}/// <summary>
-                            {{D(2)}}/// {{desc}}
-                            {{D(2)}}/// </summary>
-                            """);
+                // Second argument is SizeMode, description is third
+                if (item.Arguments.Length > 2)
+                {
+                    desc = item.Arguments[2].Expression.ToString()[1..^1];
+                }
             }
+            else
+            {
+                // Second argument is description
+                desc = secondArg[1..^1];
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(desc))
+        {
+            sb.AppendLine($$"""
+                        {{D(2)}}/// <summary>
+                        {{D(2)}}/// {{desc}}
+                        {{D(2)}}/// </summary>
+                        """);
         }
 
         sb.AppendLine($$"""
@@ -682,17 +796,34 @@ public class GenPackGenerator : IIncrementalGenerator
         var defaultSet = $" = new Dictionary<string, {@type}>();";
         var propertyName = item.Arguments[0].Expression.ToString()[1..^1];
 
+        // Find the description argument - it might be at different positions depending on whether SizeMode is specified
+        string desc = "";
         if (item.Arguments.Length > 1)
         {
-            var desc = item.Arguments[1].Expression.ToString()[1..^1];
-            if (string.IsNullOrWhiteSpace(desc) is false)
+            // Check if second argument is SizeMode or description
+            var secondArg = item.Arguments[1].Expression.ToString();
+            if (secondArg.Contains("SizeMode.") || secondArg.Contains("Fixed") || secondArg.Contains("Variable"))
             {
-                sb.AppendLine($$"""
-                            {{D(2)}}/// <summary>
-                            {{D(2)}}/// {{desc}}
-                            {{D(2)}}/// </summary>
-                            """);
+                // Second argument is SizeMode, description is third
+                if (item.Arguments.Length > 2)
+                {
+                    desc = item.Arguments[2].Expression.ToString()[1..^1];
+                }
             }
+            else
+            {
+                // Second argument is description
+                desc = secondArg[1..^1];
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(desc))
+        {
+            sb.AppendLine($$"""
+                        {{D(2)}}/// <summary>
+                        {{D(2)}}/// {{desc}}
+                        {{D(2)}}/// </summary>
+                        """);
         }
 
         sb.AppendLine($$"""

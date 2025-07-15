@@ -84,12 +84,52 @@ public class PacketSchemaBuilder
         return this;
     }
 
+    /// <summary>
+    /// Defines a list property with variable 7-bit encoding for size (default behavior)
+    /// </summary>
+    /// <typeparam name="T">The type of elements in the list</typeparam>
+    /// <param name="name">The name of the property</param>
+    /// <param name="description">Optional description for the property</param>
+    /// <returns>The current PacketSchemaBuilder instance for method chaining</returns>
     public PacketSchemaBuilder @list<T>(string name, string description = "")
     {
         return this;
     }
 
+    /// <summary>
+    /// Defines a list property with the specified size encoding mode
+    /// </summary>
+    /// <typeparam name="T">The type of elements in the list</typeparam>
+    /// <param name="name">The name of the property</param>
+    /// <param name="sizeMode">The encoding mode for the list size</param>
+    /// <param name="description">Optional description for the property</param>
+    /// <returns>The current PacketSchemaBuilder instance for method chaining</returns>
+    public PacketSchemaBuilder @list<T>(string name, SizeMode sizeMode, string description = "")
+    {
+        return this;
+    }
+
+    /// <summary>
+    /// Defines a dictionary property with variable 7-bit encoding for size (default behavior)
+    /// </summary>
+    /// <typeparam name="T">The type of values in the dictionary</typeparam>
+    /// <param name="name">The name of the property</param>
+    /// <param name="description">Optional description for the property</param>
+    /// <returns>The current PacketSchemaBuilder instance for method chaining</returns>
     public PacketSchemaBuilder @dict<T>(string name, string description = "")
+    {
+        return this;
+    }
+
+    /// <summary>
+    /// Defines a dictionary property with the specified size encoding mode
+    /// </summary>
+    /// <typeparam name="T">The type of values in the dictionary</typeparam>
+    /// <param name="name">The name of the property</param>
+    /// <param name="sizeMode">The encoding mode for the dictionary size</param>
+    /// <param name="description">Optional description for the property</param>
+    /// <returns>The current PacketSchemaBuilder instance for method chaining</returns>
+    public PacketSchemaBuilder @dict<T>(string name, SizeMode sizeMode, string description = "")
     {
         return this;
     }
