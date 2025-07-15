@@ -610,7 +610,7 @@ public class GenPackGenerator : IIncrementalGenerator
         return nameSpace;
     }
 
-    private static string D(int depth) => depth switch
+    private static string D(int depths) => depths switch
     {
         0 => "",
         1 => "    ",
@@ -618,6 +618,6 @@ public class GenPackGenerator : IIncrementalGenerator
         3 => "            ",
         4 => "                ",
         5 => "                    ",
-        _ => throw new ArgumentOutOfRangeException(nameof(depth))
+        _ => throw new ArgumentOutOfRangeException(nameof(depths))
     };
 }

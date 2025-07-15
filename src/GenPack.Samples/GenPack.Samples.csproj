@@ -13,7 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\GenPack.SourceGenerator\GenPack.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="..\GenPack\GenPack.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
+    <ProjectReference Include="..\GenPack\GenPack.csproj" />
   </ItemGroup>
 
 </Project>
