@@ -10,6 +10,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 
 using SchemaItem = (string SchemaName, string SchemaType, bool IsDefaultType, Microsoft.CodeAnalysis.CSharp.Syntax.ArgumentSyntax[] Arguments);
+using SchemaConfig = (string EndianValue, string StringEncodingValue);
 
 namespace GenPack;
 
@@ -89,7 +90,7 @@ public class GenPackGenerator : IIncrementalGenerator
                 continue;
 
             var schemaBuilder = new StringBuilder();
-            var schemaItems = ParseSchema(compilation, packetSchemaSyntax.DescendantNodes());
+            var (schemaItems, schemaConfig) = ParseSchema(compilation, packetSchemaSyntax.DescendantNodes());
 
             schemaBuilder.AppendLine("#pragma warning disable CS0219");
             
@@ -105,7 +106,7 @@ public class GenPackGenerator : IIncrementalGenerator
                 """);
 
             AddProperties(schemaBuilder, schemaItems);
-            AddMethods(schemaBuilder, string.IsNullOrEmpty(@namespace) ? classSymbol.Name : $"{@namespace}.{classSymbol.Name}", schemaItems);
+            AddMethods(schemaBuilder, string.IsNullOrEmpty(@namespace) ? classSymbol.Name : $"{@namespace}.{classSymbol.Name}", schemaItems, schemaConfig);
 
             schemaBuilder.AppendLine($$"""{{D(1)}}}""");
 
@@ -116,15 +117,59 @@ public class GenPackGenerator : IIncrementalGenerator
         }
     }
 
-    private static IReadOnlyList<SchemaItem> ParseSchema(Compilation compilation, IEnumerable<SyntaxNode> nodes)
+    private static (IReadOnlyList<SchemaItem>, SchemaConfig) ParseSchema(Compilation compilation, IEnumerable<SyntaxNode> nodes)
     {
         List<SchemaItem> result = [];
+        SchemaConfig config = ("GenPack.UnitEndian.Little", "GenPack.StringEncoding.UTF8");
 
         var invocationNodes = nodes.OfType<InvocationExpressionSyntax>().Reverse().ToArray();
         if (invocationNodes.Length is 0)
-            return result;
-        if (invocationNodes.First().ChildNodes().First().TryGetInferredMemberName() is not nameof(PacketSchemaBuilder.Create))
-            return result;
+            return (result, config);
+        
+        var createNode = invocationNodes.FirstOrDefault(node => 
+            node.ChildNodes().First().TryGetInferredMemberName() is nameof(PacketSchemaBuilder.Create));
+        
+        if (createNode is null)
+            return (result, config);
+
+        // Parse Create method arguments for endian and string encoding
+        var createArgumentList = createNode.ChildNodes().OfType<ArgumentListSyntax>().FirstOrDefault();
+        if (createArgumentList is not null)
+        {
+            var createArguments = createArgumentList.Arguments.ToArray();
+            if (createArguments.Length >= 1)
+            {
+                var endianArg = createArguments[0].Expression.ToString();
+                if (endianArg.Contains("UnitEndian."))
+                {
+                    config.EndianValue = $"GenPack.{endianArg}";
+                }
+                else if (!endianArg.Contains("GenPack."))
+                {
+                    config.EndianValue = $"GenPack.UnitEndian.{endianArg}";
+                }
+                else
+                {
+                    config.EndianValue = endianArg;
+                }
+            }
+            if (createArguments.Length >= 2)
+            {
+                var encodingArg = createArguments[1].Expression.ToString();
+                if (encodingArg.Contains("StringEncoding."))
+                {
+                    config.StringEncodingValue = $"GenPack.{encodingArg}";
+                }
+                else if (!encodingArg.Contains("GenPack."))
+                {
+                    config.StringEncodingValue = $"GenPack.StringEncoding.{encodingArg}";
+                }
+                else
+                {
+                    config.StringEncodingValue = encodingArg;
+                }
+            }
+        }
 
         foreach (var node in invocationNodes)
         {
@@ -147,257 +192,287 @@ public class GenPackGenerator : IIncrementalGenerator
             if (schemaName is nameof(PacketSchemaBuilder.Build) is true)
                 break;
 
+            if (schemaName is nameof(PacketSchemaBuilder.Create) is true)
+                continue;
+
+            // Check if arguments count is greater than 0 and handle accordingly
+            if (arguments.Length > 0)
+            {
+                // Extract the argument type if it's an Enum, otherwise keep the original schema type
+                var argumentType = arguments[0].DescendantNodes().OfType<IdentifierNameSyntax>().FirstOrDefault()?.Identifier.Text;
+                schemaType = compilation.GetTypeByMetadataName(argumentType ?? string.Empty)?.ToDisplayString() ?? schemaType;
+            }
+
             result.Add((schemaName, schemaType, PacketSchema.IsDefaultType(schemaType), arguments));
         }
 
-        return result;
+        return (result, config);
     }
 
-    private static void AddMethods(StringBuilder sb, string className, IReadOnlyList<SchemaItem> items)
+    private static void AddMethods(StringBuilder sb, string className, IReadOnlyList<SchemaItem> items, SchemaConfig config)
     {
         if (items.Count is 0)
             return;
 
-        var createMethod = items.First();
-        var methods = items.Skip(1);
-
-        addToPackMethod();
-        addFromPackMethod(className);
-
-        // ------
-
-        void addToPackMethod()
-        {
-            sb.AppendLine($$"""
-                {{D(2)}}public byte[] ToPacket()
-                {{D(2)}}{
-                {{D(2)}}    using var ms = new System.IO.MemoryStream();
-                {{D(2)}}    ToPacket(ms);
-                {{D(2)}}    return ms.ToArray();
-                {{D(2)}}}
-                """);
-
-            sb.AppendLine($$"""
-                {{D(2)}}public void ToPacket(System.IO.Stream stream)
-                {{D(2)}}{
-                {{D(2)}}    System.IO.BinaryWriter writer = new System.IO.BinaryWriter(stream);
-                """);
-
-
-            foreach (var item in methods)
-            {
-                switch (item.SchemaName)
-                {
-                    case nameof(PacketSchemaBuilder.@byte):
-                    case nameof(PacketSchemaBuilder.@sbyte):
-                    case nameof(PacketSchemaBuilder.@short):
-                    case nameof(PacketSchemaBuilder.@ushort):
-                    case nameof(PacketSchemaBuilder.@int):
-                    case nameof(PacketSchemaBuilder.@uint):
-                    case nameof(PacketSchemaBuilder.@long):
-                    case nameof(PacketSchemaBuilder.@ulong):
-                    case nameof(PacketSchemaBuilder.@float):
-                    case nameof(PacketSchemaBuilder.@double):
-                    case nameof(PacketSchemaBuilder.@string):
-                        {
-                            var propertyName = GetPropertyName(item);
-                            sb.AppendLine($"{D(3)}writer.Write({propertyName});");
-                        }
-                        break;
-                    case nameof(PacketSchemaBuilder.@object):
-                        {
-                            var propertyName = GetPropertyName(item);
-                            sb.AppendLine($"{D(3)}{propertyName}.ToPacket(stream);");
-                        }
-                        break;
-                    case nameof(PacketSchemaBuilder.@list):
-                        {
-                            var propertyName = GetPropertyName(item);
-                            var writeMethod = item.IsDefaultType is true ? "writer.Write(item)" : "item.ToPacket(stream)";
-
-                            sb.AppendLine($$"""
-                            {{D(3)}}writer.Write7BitEncodedInt({{propertyName}}.Count);
-                            {{D(3)}}foreach (var item in {{propertyName}})
-                            {{D(3)}}{
-                            {{D(3)}}    {{writeMethod}};
-                            {{D(3)}}}
-                            """);
-                        }
-                        break;
-                    case nameof(PacketSchemaBuilder.@dict):
-                        {
-                            var propertyName = GetPropertyName(item);
-                            var writeMethod = item.IsDefaultType is true ? "writer.Write(item.Value)" : "item.Value.ToPacket(stream)";
-
-                            sb.AppendLine($$"""
-                            {{D(3)}}writer.Write7BitEncodedInt({{propertyName}}.Count);
-                            {{D(3)}}foreach (var item in {{propertyName}})
-                            {{D(3)}}{
-                            {{D(3)}}    writer.Write(item.Key);
-                            {{D(3)}}    {{writeMethod}};
-                            {{D(3)}}}
-                            """);
-                        }
-                        break;
-
-                    case nameof(PacketSchemaBuilder.@array):
-                        {
-                            var propertyName = GetPropertyName(item);
-                            var writeMethod = item.IsDefaultType is true ? "writer.Write(item)" : "item.ToPacket(stream)";
-                            if (item.IsDefaultType is true)
-                            {
-                                if (item.SchemaType is nameof(PacketSchemaBuilder.@byte))
-                                {
-                                    sb.AppendLine($"{D(3)}writer.Write({propertyName});");
-                                    break;
-                                }
-                            }
-
-                            sb.AppendLine($$"""
-                            {{D(3)}}foreach (var item in {{propertyName}})
-                            {{D(3)}}{
-                            {{D(3)}}    {{writeMethod}};
-                            {{D(3)}}}
-                            """);
-                        }
-                        break;
-                    case nameof(PacketSchemaBuilder.BeginPointChecksum):
-                        break;
-                    case nameof(PacketSchemaBuilder.EndPointChecksum):
-                        break;
-                    case nameof(PacketSchemaBuilder.@checkum):
-                        break;
-                    default:
-                        break;
-                }
-            }
-
-            sb.AppendLine($$"""{{D(2)}}}""");
-        }
-
-        void addFromPackMethod(string className)
-        {
-            sb.AppendLine($$"""
-                {{D(2)}}public static {{className}} FromPacket(byte[] data)
-                {{D(2)}}{
-                {{D(2)}}    using var ms = new System.IO.MemoryStream(data);
-                {{D(2)}}    return FromPacket(ms);
-                {{D(2)}}}
-                """);
-
-            sb.AppendLine($$"""
-                {{D(2)}}public static {{className}} FromPacket(System.IO.Stream stream)
-                {{D(2)}}{
-                {{D(2)}}    {{className}} result = new {{className}}();
-                {{D(2)}}    System.IO.BinaryReader reader = new System.IO.BinaryReader(stream);
-                {{D(2)}}    int size = 0;
-                {{D(2)}}    byte[] buffer = null;
-                """);
-
-
-            foreach (var item in methods)
-            {
-                switch (item.SchemaName)
-                {
-                    case nameof(PacketSchemaBuilder.@byte):
-                    case nameof(PacketSchemaBuilder.@sbyte):
-                    case nameof(PacketSchemaBuilder.@short):
-                    case nameof(PacketSchemaBuilder.@ushort):
-                    case nameof(PacketSchemaBuilder.@int):
-                    case nameof(PacketSchemaBuilder.@uint):
-                    case nameof(PacketSchemaBuilder.@long):
-                    case nameof(PacketSchemaBuilder.@ulong):
-                    case nameof(PacketSchemaBuilder.@float):
-                    case nameof(PacketSchemaBuilder.@double):
-                    case nameof(PacketSchemaBuilder.@string):
-                        {
-                            sb.AppendLine($"{D(3)}result.{GetPropertyName(item)} = reader.Read{PacketSchema.GetClsType(item.SchemaType)}();");
-                        }
-                        break;
-                    case nameof(PacketSchemaBuilder.@object):
-                        {
-                            sb.AppendLine($"{D(3)}result.{GetPropertyName(item)} = {item.SchemaType}.FromPacket(stream);");
-                        }
-                        break;
-                    case nameof(PacketSchemaBuilder.@list):
-                        {
-                            var propertyName = GetPropertyName(item);
-                            var readMethod = item.IsDefaultType is true ? $"reader.Read{PacketSchema.GetClsType(item.SchemaType)}()" : $"{item.SchemaType}.FromPacket(stream)";
-
-                            sb.AppendLine($$"""
-                            {{D(3)}}size = reader.Read7BitEncodedInt();
-                            {{D(3)}}for (var i = 0; i < size; i++)
-                            {{D(3)}}{
-                            {{D(3)}}    result.{{propertyName}}.Add({{readMethod}});
-                            {{D(3)}}}
-                            """);
-                        }
-                        break;
-                    case nameof(PacketSchemaBuilder.@dict):
-                        {
-                            var propertyName = GetPropertyName(item);
-                            var readMethod = item.IsDefaultType is true ? $"reader.Read{PacketSchema.GetClsType(item.SchemaType)}()" : $"{item.SchemaType}.FromPacket(stream)";
-
-                            sb.AppendLine($$"""
-                            {{D(3)}}size = reader.Read7BitEncodedInt();
-                            {{D(3)}}for (var i = 0; i < size; i++)
-                            {{D(3)}}{
-                            {{D(3)}}    result.{{propertyName}}[reader.ReadString()] = {{readMethod}};
-                            {{D(3)}}}
-                            """);
-                        }
-                        break;
-
-                    case nameof(PacketSchemaBuilder.@array):
-                        {
-                            var propertyName = GetPropertyName(item);
-                            var readMethod = item.IsDefaultType is true ? $"reader.Read{PacketSchema.GetClsType(item.SchemaType)}()" : $"{item.SchemaType}.FromPacket(stream)";
-                            var length = int.Parse(item.Arguments[1].Expression.ToString());
-
-                            if (item.IsDefaultType is true)
-                            {
-                                // TODO: Read(Span<byte>)는 .NET Standard 2.0에서 지원하지 않으므로 차후 TargetFramework을 확인해서 적용할 수 있도록 수정해야 함
-                                //if (item.SchemaType is nameof(PacketSchemaBuilder.@byte))
-                                //{
-                                //    sb.AppendLine($"{D(3)}reader.Read(result.{propertyName}.AsSpan());");
-                                //    break;
-                                //}
-
-                                if (item.SchemaType is nameof(PacketSchemaBuilder.@byte))
-                                {
-                                    sb.AppendLine($$"""
-                                        {{D(3)}}buffer = reader.ReadBytes({{length}});
-                                        {{D(3)}}Array.Copy(buffer, result.{{propertyName}}, {{length}});
-                                        """);
-                                    break;
-                                }
-                            }
-
-                            sb.AppendLine($$"""
-                            {{D(3)}}for (var i = 0; i < {{length}}; i++)
-                            {{D(3)}}{
-                            {{D(3)}}    result.{{propertyName}}[i] = {{readMethod}};
-                            {{D(3)}}}
-                            """);
-                        }
-                        break;
-                    case nameof(PacketSchemaBuilder.BeginPointChecksum):
-                        break;
-                    case nameof(PacketSchemaBuilder.EndPointChecksum):
-                        break;
-                    case nameof(PacketSchemaBuilder.@checkum):
-                        break;
-                    default:
-                        break;
-                }
-            }
-
-            sb.AppendLine($$"""{{D(3)}}return result;""");
-            sb.AppendLine($$"""{{D(2)}}}""");
-        }
+        AddToPackMethod(sb, items, config);
+        AddFromPackMethod(sb, className, items, config);
     }
 
+    private static void AddToPackMethod(StringBuilder sb, IReadOnlyList<SchemaItem> items, SchemaConfig config)
+    {
+        sb.AppendLine($$"""
+            {{D(2)}}public byte[] ToPacket()
+            {{D(2)}}{
+            {{D(2)}}    using var ms = new System.IO.MemoryStream();
+            {{D(2)}}    ToPacket(ms);
+            {{D(2)}}    return ms.ToArray();
+            {{D(2)}}}
+            """);
+
+        sb.AppendLine($$"""
+            {{D(2)}}public void ToPacket(System.IO.Stream stream)
+            {{D(2)}}{
+            {{D(2)}}    using var writer = new GenPack.IO.EndianAwareBinaryWriter(stream, {{config.EndianValue}}, {{config.StringEncodingValue}});
+            """);
+
+        foreach (var item in items)
+        {
+            switch (item.SchemaName)
+            {
+                case nameof(PacketSchemaBuilder.@byte):
+                case nameof(PacketSchemaBuilder.@sbyte):
+                case nameof(PacketSchemaBuilder.@short):
+                case nameof(PacketSchemaBuilder.@ushort):
+                case nameof(PacketSchemaBuilder.@int):
+                case nameof(PacketSchemaBuilder.@uint):
+                case nameof(PacketSchemaBuilder.@long):
+                case nameof(PacketSchemaBuilder.@ulong):
+                case nameof(PacketSchemaBuilder.@float):
+                case nameof(PacketSchemaBuilder.@double):
+                case nameof(PacketSchemaBuilder.@string):
+                    {
+                        var propertyName = GetPropertyName(item);
+                        sb.AppendLine($"{D(3)}writer.Write({propertyName});");
+                    }
+                    break;
+                case nameof(PacketSchemaBuilder.@object):
+                    {
+                        var propertyName = GetPropertyName(item);
+                        sb.AppendLine($"{D(3)}{propertyName}.ToPacket(stream);");
+                    }
+                    break;
+                case nameof(PacketSchemaBuilder.@list):
+                    {
+                        var propertyName = GetPropertyName(item);
+                        var writeMethod = item.IsDefaultType is true ? "writer.Write(item)" : "item.ToPacket(stream)";
+
+                        sb.AppendLine($$"""
+                        {{D(3)}}writer.Write7BitEncodedInt({{propertyName}}.Count);
+                        {{D(3)}}foreach (var item in {{propertyName}})
+                        {{D(3)}}{
+                        {{D(3)}}    {{writeMethod}};
+                        {{D(3)}}}
+                        """);
+                    }
+                    break;
+                case nameof(PacketSchemaBuilder.@dict):
+                    {
+                        var propertyName = GetPropertyName(item);
+                        var writeMethod = item.IsDefaultType is true ? "writer.Write(item.Value)" : "item.Value.ToPacket(stream)";
+
+                        sb.AppendLine($$"""
+                        {{D(3)}}writer.Write7BitEncodedInt({{propertyName}}.Count);
+                        {{D(3)}}foreach (var item in {{propertyName}})
+                        {{D(3)}}{
+                        {{D(3)}}    writer.Write(item.Key);
+                        {{D(3)}}    {{writeMethod}};
+                        {{D(3)}}}
+                        """);
+                    }
+                    break;
+                case nameof(PacketSchemaBuilder.@array):
+                    {
+                        var propertyName = GetPropertyName(item);
+                        var writeMethod = item.IsDefaultType is true ? "writer.Write(item)" : "item.ToPacket(stream)";
+                        if (item.IsDefaultType is true)
+                        {
+                            if (item.SchemaType is nameof(PacketSchemaBuilder.@byte))
+                            {
+                                sb.AppendLine($"{D(3)}writer.Write({propertyName});");
+                                break;
+                            }
+                        }
+
+                        sb.AppendLine($$"""
+                        {{D(3)}}foreach (var item in {{propertyName}})
+                        {{D(3)}}{
+                        {{D(3)}}    {{writeMethod}};
+                        {{D(3)}}}
+                        """);
+                    }
+                    break;
+                case nameof(PacketSchemaBuilder.BeginPointChecksum):
+                    break;
+                case nameof(PacketSchemaBuilder.EndPointChecksum):
+                    break;
+                case nameof(PacketSchemaBuilder.@checkum):
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        sb.AppendLine($$"""{{D(2)}}}""");
+    }
+
+    private static void AddFromPackMethod(StringBuilder sb, string className, IReadOnlyList<SchemaItem> items, SchemaConfig config)
+    {
+        sb.AppendLine($$"""
+            {{D(2)}}public static {{className}} FromPacket(byte[] data)
+            {{D(2)}}{
+            {{D(2)}}    using var ms = new System.IO.MemoryStream(data);
+            {{D(2)}}    return FromPacket(ms);
+            {{D(2)}}}
+            """);
+
+        sb.AppendLine($$"""
+            {{D(2)}}public static {{className}} FromPacket(System.IO.Stream stream)
+            {{D(2)}}{
+            {{D(2)}}    {{className}} result = new {{className}}();
+            {{D(2)}}    using var reader = new GenPack.IO.EndianAwareBinaryReader(stream, {{config.EndianValue}}, {{config.StringEncodingValue}});
+            {{D(2)}}    int size = 0;
+            {{D(2)}}    byte[] buffer = null;
+            """);
+
+        foreach (var item in items)
+        {
+            switch (item.SchemaName)
+            {
+                case nameof(PacketSchemaBuilder.@byte):
+                    sb.AppendLine($"{D(3)}result.{GetPropertyName(item)} = reader.ReadByte();");
+                    break;
+                case nameof(PacketSchemaBuilder.@sbyte):
+                    sb.AppendLine($"{D(3)}result.{GetPropertyName(item)} = reader.ReadSByte();");
+                    break;
+                case nameof(PacketSchemaBuilder.@short):
+                    sb.AppendLine($"{D(3)}result.{GetPropertyName(item)} = reader.ReadInt16();");
+                    break;
+                case nameof(PacketSchemaBuilder.@ushort):
+                    sb.AppendLine($"{D(3)}result.{GetPropertyName(item)} = reader.ReadUInt16();");
+                    break;
+                case nameof(PacketSchemaBuilder.@int):
+                    sb.AppendLine($"{D(3)}result.{GetPropertyName(item)} = reader.ReadInt32();");
+                    break;
+                case nameof(PacketSchemaBuilder.@uint):
+                    sb.AppendLine($"{D(3)}result.{GetPropertyName(item)} = reader.ReadUInt32();");
+                    break;
+                case nameof(PacketSchemaBuilder.@long):
+                    sb.AppendLine($"{D(3)}result.{GetPropertyName(item)} = reader.ReadInt64();");
+                    break;
+                case nameof(PacketSchemaBuilder.@ulong):
+                    sb.AppendLine($"{D(3)}result.{GetPropertyName(item)} = reader.ReadUInt64();");
+                    break;
+                case nameof(PacketSchemaBuilder.@float):
+                    sb.AppendLine($"{D(3)}result.{GetPropertyName(item)} = reader.ReadSingle();");
+                    break;
+                case nameof(PacketSchemaBuilder.@double):
+                    sb.AppendLine($"{D(3)}result.{GetPropertyName(item)} = reader.ReadDouble();");
+                    break;
+                case nameof(PacketSchemaBuilder.@string):
+                    sb.AppendLine($"{D(3)}result.{GetPropertyName(item)} = reader.ReadString();");
+                    break;
+                case nameof(PacketSchemaBuilder.@object):
+                    {
+                        sb.AppendLine($"{D(3)}result.{GetPropertyName(item)} = {item.SchemaType}.FromPacket(stream);");
+                    }
+                    break;
+                case nameof(PacketSchemaBuilder.@list):
+                    {
+                        var propertyName = GetPropertyName(item);
+                        var readMethod = item.IsDefaultType is true ? GetReadMethod(item.SchemaType) : $"{item.SchemaType}.FromPacket(stream)";
+
+                        sb.AppendLine($$"""
+                        {{D(3)}}size = reader.Read7BitEncodedInt();
+                        {{D(3)}}for (var i = 0; i < size; i++)
+                        {{D(3)}}{
+                        {{D(3)}}    result.{{propertyName}}.Add({{readMethod}});
+                        {{D(3)}}}
+                        """);
+                    }
+                    break;
+                case nameof(PacketSchemaBuilder.@dict):
+                    {
+                        var propertyName = GetPropertyName(item);
+                        var readMethod = item.IsDefaultType is true ? GetReadMethod(item.SchemaType) : $"{item.SchemaType}.FromPacket(stream)";
+
+                        sb.AppendLine($$"""
+                        {{D(3)}}size = reader.Read7BitEncodedInt();
+                        {{D(3)}}for (var i = 0; i < size; i++)
+                        {{D(3)}}{
+                        {{D(3)}}    result.{{propertyName}}[reader.ReadString()] = {{readMethod}};
+                        {{D(3)}}}
+                        """);
+                    }
+                    break;
+                case nameof(PacketSchemaBuilder.@array):
+                    {
+                        var propertyName = GetPropertyName(item);
+                        var readMethod = item.IsDefaultType is true ? GetReadMethod(item.SchemaType) : $"{item.SchemaType}.FromPacket(stream)";
+                        var length = int.Parse(item.Arguments[1].Expression.ToString());
+
+                        if (item.IsDefaultType is true)
+                        {
+                            if (item.SchemaType is nameof(PacketSchemaBuilder.@byte))
+                            {
+                                sb.AppendLine($$"""
+                                    {{D(3)}}buffer = reader.ReadBytes({{length}});
+                                    {{D(3)}}Array.Copy(buffer, result.{{propertyName}}, {{length}});
+                                    """);
+                                break;
+                            }
+                        }
+
+                        sb.AppendLine($$"""
+                        {{D(3)}}for (var i = 0; i < {{length}}; i++)
+                        {{D(3)}}{
+                        {{D(3)}}    result.{{propertyName}}[i] = {{readMethod}};
+                        {{D(3)}}}
+                        """);
+                    }
+                    break;
+                case nameof(PacketSchemaBuilder.BeginPointChecksum):
+                    break;
+                case nameof(PacketSchemaBuilder.EndPointChecksum):
+                    break;
+                case nameof(PacketSchemaBuilder.@checkum):
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        sb.AppendLine($$"""{{D(3)}}return result;""");
+        sb.AppendLine($$"""{{D(2)}}}""");
+    }
+
+    private static string GetReadMethod(string schemaType) => schemaType switch
+    {
+        nameof(PacketSchemaBuilder.@byte) => "reader.ReadByte()",
+        nameof(PacketSchemaBuilder.@sbyte) => "reader.ReadSByte()",
+        nameof(PacketSchemaBuilder.@short) => "reader.ReadInt16()",
+        nameof(PacketSchemaBuilder.@ushort) => "reader.ReadUInt16()",
+        nameof(PacketSchemaBuilder.@int) => "reader.ReadInt32()",
+        nameof(PacketSchemaBuilder.@uint) => "reader.ReadUInt32()",
+        nameof(PacketSchemaBuilder.@long) => "reader.ReadInt64()",
+        nameof(PacketSchemaBuilder.@ulong) => "reader.ReadUInt64()",
+        nameof(PacketSchemaBuilder.@float) => "reader.ReadSingle()",
+        nameof(PacketSchemaBuilder.@double) => "reader.ReadDouble()",
+        nameof(PacketSchemaBuilder.@string) => "reader.ReadString()",
+        _ => $"reader.Read{PacketSchema.GetClsType(schemaType)}()"
+    };
+
     private static string GetPropertyName(SchemaItem item) => item.Arguments[0].Expression.ToString()[1..^1];
+    
     private static void AddProperties(StringBuilder sb, IReadOnlyList<SchemaItem> items)
     {
         foreach (var item in items)
