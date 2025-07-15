@@ -318,11 +318,46 @@ public class GenPackGenerator : IIncrementalGenerator
                         """);
                     }
                     break;
+                case nameof(PacketSchemaBuilder.BeginChecksumRegion):
                 case nameof(PacketSchemaBuilder.BeginPointChecksum):
+                    sb.AppendLine($"{D(3)}writer.BeginChecksumRegion();");
                     break;
+                case nameof(PacketSchemaBuilder.EndChecksumRegion):
                 case nameof(PacketSchemaBuilder.EndPointChecksum):
+                    sb.AppendLine($"{D(3)}writer.EndChecksumRegion();");
                     break;
+                case nameof(PacketSchemaBuilder.@checksum):
                 case nameof(PacketSchemaBuilder.@checkum):
+                    {
+                        string checksumType;
+                        string propertyName = "";
+                        
+                        if (item.SchemaName == nameof(PacketSchemaBuilder.@checksum))
+                        {
+                            propertyName = GetPropertyName(item);
+                            checksumType = item.Arguments.Length > 1 ? item.Arguments[1].Expression.ToString() : "GenPack.ChecksumType.Sum8";
+                        }
+                        else
+                        {
+                            // Legacy @checkum method
+                            checksumType = item.Arguments.Length > 0 ? item.Arguments[0].Expression.ToString() : "GenPack.ChecksumType.Sum8";
+                        }
+                        
+                        // Ensure ChecksumType has GenPack namespace prefix
+                        if (!checksumType.Contains("GenPack.") && checksumType.Contains("ChecksumType."))
+                        {
+                            checksumType = $"GenPack.{checksumType}";
+                        }
+                        
+                        if (!string.IsNullOrEmpty(propertyName))
+                        {
+                            sb.AppendLine($"{D(3)}{propertyName} = ({GetChecksumPropertyType(checksumType)})writer.WriteChecksum({checksumType});");
+                        }
+                        else
+                        {
+                            sb.AppendLine($"{D(3)}writer.WriteChecksum({checksumType});");
+                        }
+                    }
                     break;
                 default:
                     break;
@@ -454,11 +489,44 @@ public class GenPackGenerator : IIncrementalGenerator
                         """);
                     }
                     break;
+                case nameof(PacketSchemaBuilder.BeginChecksumRegion):
                 case nameof(PacketSchemaBuilder.BeginPointChecksum):
+                    sb.AppendLine($"{D(3)}reader.BeginChecksumRegion();");
                     break;
+                case nameof(PacketSchemaBuilder.EndChecksumRegion):
                 case nameof(PacketSchemaBuilder.EndPointChecksum):
+                    sb.AppendLine($"{D(3)}reader.EndChecksumRegion();");
                     break;
+                case nameof(PacketSchemaBuilder.@checksum):
                 case nameof(PacketSchemaBuilder.@checkum):
+                    {
+                        if (item.SchemaName == nameof(PacketSchemaBuilder.@checksum))
+                        {
+                            var propertyName = GetPropertyName(item);
+                            var checksumType = item.Arguments.Length > 1 ? item.Arguments[1].Expression.ToString() : "GenPack.ChecksumType.Sum8";
+                            
+                            // Ensure ChecksumType has GenPack namespace prefix
+                            if (!checksumType.Contains("GenPack.") && checksumType.Contains("ChecksumType."))
+                            {
+                                checksumType = $"GenPack.{checksumType}";
+                            }
+                            
+                            sb.AppendLine($"{D(3)}result.{propertyName} = ({GetChecksumPropertyType(checksumType)})reader.ReadAndValidateChecksum({checksumType});");
+                        }
+                        else
+                        {
+                            // Legacy @checkum method - just validate without storing
+                            var checksumType = item.Arguments.Length > 0 ? item.Arguments[0].Expression.ToString() : "GenPack.ChecksumType.Sum8";
+                            
+                            // Ensure ChecksumType has GenPack namespace prefix
+                            if (!checksumType.Contains("GenPack.") && checksumType.Contains("ChecksumType."))
+                            {
+                                checksumType = $"GenPack.{checksumType}";
+                            }
+                            
+                            sb.AppendLine($"{D(3)}reader.ValidateChecksum({checksumType});");
+                        }
+                    }
                     break;
                 default:
                     break;
@@ -518,11 +586,15 @@ public class GenPackGenerator : IIncrementalGenerator
                 case nameof(PacketSchemaBuilder.@array):
                     AddArrayProperty(sb, item);
                     break;
+                case nameof(PacketSchemaBuilder.@checksum):
+                    AddChecksumProperty(sb, item);
+                    break;
+                case nameof(PacketSchemaBuilder.BeginChecksumRegion):
+                case nameof(PacketSchemaBuilder.EndChecksumRegion):
                 case nameof(PacketSchemaBuilder.BeginPointChecksum):
-                    break;
                 case nameof(PacketSchemaBuilder.EndPointChecksum):
-                    break;
                 case nameof(PacketSchemaBuilder.@checkum):
+                    // These don't generate properties
                     break;
                 default:
                     break;
@@ -653,6 +725,52 @@ public class GenPackGenerator : IIncrementalGenerator
         sb.AppendLine($$"""
             {{D(2)}}public {{@type}}[] {{propertyName}} { get; }{{defaultSet}}
             """);
+    }
+
+    private static void AddChecksumProperty(StringBuilder sb, SchemaItem item)
+    {
+        var propertyName = item.Arguments[0].Expression.ToString()[1..^1];
+        var checksumType = item.Arguments.Length > 1 ? item.Arguments[1].Expression.ToString() : "ChecksumType.Sum8";
+        
+        // Determine the property type based on checksum type
+        var propertyType = GetChecksumPropertyType(checksumType);
+
+        if (item.Arguments.Length > 2)
+        {
+            var desc = item.Arguments[2].Expression.ToString()[1..^1];
+            if (string.IsNullOrWhiteSpace(desc) is false)
+            {
+                sb.AppendLine($$"""
+                            {{D(2)}}/// <summary>
+                            {{D(2)}}/// {{desc}}
+                            {{D(2)}}/// </summary>
+                            """);
+            }
+        }
+
+        sb.AppendLine($$"""
+            {{D(2)}}public {{propertyType}} {{propertyName}} { get; set; }
+            """);
+    }
+
+    private static string GetChecksumPropertyType(string checksumType)
+    {
+        // Extract the enum value from the checksum type expression
+        var enumValue = checksumType.Contains(".") ? checksumType.Split('.').Last() : checksumType;
+        
+        return enumValue switch
+        {
+            "Sum8" => "byte",
+            "XorSum" => "byte", 
+            "Lrc8" => "byte",
+            "Sum16" => "ushort",
+            "Fletcher16" => "ushort",
+            "Crc16" => "ushort",
+            "Crc16Ccitt" => "ushort",
+            "Crc32" => "uint",
+            "Crc32C" => "uint",
+            _ => "byte[]" // Default to byte array for unknown types
+        };
     }
 
     /// <summary>

@@ -29,7 +29,6 @@ public class PacketSchemaBuilder
         };
     }
 
-
     public PacketSchemaBuilder @byte(string name, string description = "")
     {
         return this;
@@ -100,17 +99,35 @@ public class PacketSchemaBuilder
         return this;
     }
 
-    public PacketSchemaBuilder BeginPointChecksum()
+    /// <summary>
+    /// Marks the beginning of a checksum calculation region.
+    /// All data written between BeginChecksumRegion and EndChecksumRegion will be included in checksum calculation.
+    /// </summary>
+    /// <returns>The current PacketSchemaBuilder instance for method chaining</returns>
+    public PacketSchemaBuilder BeginChecksumRegion()
     {
         return this;
     }
 
-    public PacketSchemaBuilder EndPointChecksum()
+    /// <summary>
+    /// Marks the end of a checksum calculation region.
+    /// Must be paired with a corresponding BeginChecksumRegion call.
+    /// </summary>
+    /// <returns>The current PacketSchemaBuilder instance for method chaining</returns>
+    public PacketSchemaBuilder EndChecksumRegion()
     {
         return this;
     }
 
-    public PacketSchemaBuilder @checkum(ChecksumType checksumType)
+    /// <summary>
+    /// Defines a checksum field that will contain the calculated checksum value.
+    /// The checksum is computed over the data between the most recent BeginChecksumRegion and EndChecksumRegion calls.
+    /// </summary>
+    /// <param name="name">The name of the checksum property</param>
+    /// <param name="checksumType">The type of checksum algorithm to use</param>
+    /// <param name="description">Optional description for the checksum field</param>
+    /// <returns>The current PacketSchemaBuilder instance for method chaining</returns>
+    public PacketSchemaBuilder @checksum(string name, ChecksumType checksumType, string description = "")
     {
         return this;
     }
@@ -119,4 +136,35 @@ public class PacketSchemaBuilder
     {
         return this;
     }
+
+    #region Legacy Methods (for backward compatibility)
+    
+    /// <summary>
+    /// Legacy method. Use BeginChecksumRegion() instead.
+    /// </summary>
+    [System.Obsolete("Use BeginChecksumRegion() instead. This method will be removed in a future version.")]
+    public PacketSchemaBuilder BeginPointChecksum()
+    {
+        return BeginChecksumRegion();
+    }
+
+    /// <summary>
+    /// Legacy method. Use EndChecksumRegion() instead.
+    /// </summary>
+    [System.Obsolete("Use EndChecksumRegion() instead. This method will be removed in a future version.")]
+    public PacketSchemaBuilder EndPointChecksum()
+    {
+        return EndChecksumRegion();
+    }
+
+    /// <summary>
+    /// Legacy method. Use @checksum(string, ChecksumType, string) instead.
+    /// </summary>
+    [System.Obsolete("Use @checksum(string, ChecksumType, string) instead. This method will be removed in a future version.")]
+    public PacketSchemaBuilder @checkum(ChecksumType checksumType)
+    {
+        return this;
+    }
+
+    #endregion
 }

@@ -134,7 +134,7 @@ p.Age = 32;
 
 ## Tasks
 - [x] Support for Endian, string Encoding.
-- [ ] Support for checksums.
+- [X] Support for checksums.
 - [ ] Support 8-bit, 16-bit, 32-bit, 64-bit, or variable 7-bit sizes for `@list` and `@dict`.
 - [ ] Add `@ver` property to allow revision control of packets.
 - [ ] Automatically select and deserialize target structures based on packet command(identification code).

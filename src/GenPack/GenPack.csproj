@@ -7,4 +7,8 @@
     <LangVersion>preview</LangVersion>
     <Configurations>Debug;Release;DEBUGGENERATOR</Configurations>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="Utils\" />
+  </ItemGroup>
 </Project>
