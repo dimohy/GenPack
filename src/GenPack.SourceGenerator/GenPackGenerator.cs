@@ -233,6 +233,13 @@ public class GenPackGenerator : IIncrementalGenerator
             {{D(2)}}public void ToPacket(System.IO.Stream stream)
             {{D(2)}}{
             {{D(2)}}    using var writer = new GenPack.IO.EndianAwareBinaryWriter(stream, {{config.EndianValue}}, {{config.StringEncodingValue}});
+            {{D(2)}}    ToPacket(writer);
+            {{D(2)}}}
+            """);
+
+        sb.AppendLine($$"""
+            {{D(2)}}public void ToPacket(GenPack.IO.EndianAwareBinaryWriter writer)
+            {{D(2)}}{
             """);
 
         foreach (var item in items)
@@ -258,13 +265,13 @@ public class GenPackGenerator : IIncrementalGenerator
                 case nameof(PacketSchemaBuilder.@object):
                     {
                         var propertyName = GetPropertyName(item);
-                        sb.AppendLine($"{D(3)}{propertyName}.ToPacket(stream);");
+                        sb.AppendLine($"{D(3)}{propertyName}.ToPacket(writer);");
                     }
                     break;
                 case nameof(PacketSchemaBuilder.@list):
                     {
                         var propertyName = GetPropertyName(item);
-                        var writeMethod = item.IsDefaultType is true ? "writer.Write(item)" : "item.ToPacket(stream)";
+                        var writeMethod = item.IsDefaultType is true ? "writer.Write(item)" : "item.ToPacket(writer)";
 
                         sb.AppendLine($$"""
                         {{D(3)}}writer.Write7BitEncodedInt({{propertyName}}.Count);
@@ -278,7 +285,7 @@ public class GenPackGenerator : IIncrementalGenerator
                 case nameof(PacketSchemaBuilder.@dict):
                     {
                         var propertyName = GetPropertyName(item);
-                        var writeMethod = item.IsDefaultType is true ? "writer.Write(item.Value)" : "item.Value.ToPacket(stream)";
+                        var writeMethod = item.IsDefaultType is true ? "writer.Write(item.Value)" : "item.Value.ToPacket(writer)";
 
                         sb.AppendLine($$"""
                         {{D(3)}}writer.Write7BitEncodedInt({{propertyName}}.Count);
@@ -293,7 +300,7 @@ public class GenPackGenerator : IIncrementalGenerator
                 case nameof(PacketSchemaBuilder.@array):
                     {
                         var propertyName = GetPropertyName(item);
-                        var writeMethod = item.IsDefaultType is true ? "writer.Write(item)" : "item.ToPacket(stream)";
+                        var writeMethod = item.IsDefaultType is true ? "writer.Write(item)" : "item.ToPacket(writer)";
                         if (item.IsDefaultType is true)
                         {
                             if (item.SchemaType is nameof(PacketSchemaBuilder.@byte))
@@ -338,8 +345,15 @@ public class GenPackGenerator : IIncrementalGenerator
         sb.AppendLine($$"""
             {{D(2)}}public static {{className}} FromPacket(System.IO.Stream stream)
             {{D(2)}}{
-            {{D(2)}}    {{className}} result = new {{className}}();
             {{D(2)}}    using var reader = new GenPack.IO.EndianAwareBinaryReader(stream, {{config.EndianValue}}, {{config.StringEncodingValue}});
+            {{D(2)}}    return FromPacket(reader);
+            {{D(2)}}}
+            """);
+
+        sb.AppendLine($$"""
+            {{D(2)}}public static {{className}} FromPacket(GenPack.IO.EndianAwareBinaryReader reader)
+            {{D(2)}}{
+            {{D(2)}}    {{className}} result = new {{className}}();
             {{D(2)}}    int size = 0;
             {{D(2)}}    byte[] buffer = null;
             """);
@@ -383,13 +397,13 @@ public class GenPackGenerator : IIncrementalGenerator
                     break;
                 case nameof(PacketSchemaBuilder.@object):
                     {
-                        sb.AppendLine($"{D(3)}result.{GetPropertyName(item)} = {item.SchemaType}.FromPacket(stream);");
+                        sb.AppendLine($"{D(3)}result.{GetPropertyName(item)} = {item.SchemaType}.FromPacket(reader);");
                     }
                     break;
                 case nameof(PacketSchemaBuilder.@list):
                     {
                         var propertyName = GetPropertyName(item);
-                        var readMethod = item.IsDefaultType is true ? GetReadMethod(item.SchemaType) : $"{item.SchemaType}.FromPacket(stream)";
+                        var readMethod = item.IsDefaultType is true ? GetReadMethod(item.SchemaType) : $"{item.SchemaType}.FromPacket(reader)";
 
                         sb.AppendLine($$"""
                         {{D(3)}}size = reader.Read7BitEncodedInt();
@@ -403,7 +417,7 @@ public class GenPackGenerator : IIncrementalGenerator
                 case nameof(PacketSchemaBuilder.@dict):
                     {
                         var propertyName = GetPropertyName(item);
-                        var readMethod = item.IsDefaultType is true ? GetReadMethod(item.SchemaType) : $"{item.SchemaType}.FromPacket(stream)";
+                        var readMethod = item.IsDefaultType is true ? GetReadMethod(item.SchemaType) : $"{item.SchemaType}.FromPacket(reader)";
 
                         sb.AppendLine($$"""
                         {{D(3)}}size = reader.Read7BitEncodedInt();
@@ -417,7 +431,7 @@ public class GenPackGenerator : IIncrementalGenerator
                 case nameof(PacketSchemaBuilder.@array):
                     {
                         var propertyName = GetPropertyName(item);
-                        var readMethod = item.IsDefaultType is true ? GetReadMethod(item.SchemaType) : $"{item.SchemaType}.FromPacket(stream)";
+                        var readMethod = item.IsDefaultType is true ? GetReadMethod(item.SchemaType) : $"{item.SchemaType}.FromPacket(reader)";
                         var length = int.Parse(item.Arguments[1].Expression.ToString());
 
                         if (item.IsDefaultType is true)

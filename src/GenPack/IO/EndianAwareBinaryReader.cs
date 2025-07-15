@@ -159,17 +159,19 @@ public class EndianAwareBinaryReader : IDisposable
 
     public int Read7BitEncodedInt()
     {
-        // Read out an int 7 bits at a time. The high bit
-        // of the byte when on means to continue reading more bytes.
+        // Read out an int 7 bits at a time. The high bit of the byte,
+        // when on, tells reader to continue reading more bytes.
         int count = 0;
         int shift = 0;
         byte b;
         do
         {
             // Check for a corrupted stream. Read a max of 5 bytes.
-            // In a future version, add a DataFormatException.
+            // In a future version, this check could be removed for performance.
             if (shift == 5 * 7)  // 5 bytes max per Int32, shift += 7
-                throw new FormatException("Bad 7-bit encoded integer");
+            {
+                throw new FormatException("Bad 7-bit encoded integer format");
+            }
 
             // ReadByte handles end of stream cases for us.
             b = ReadByte();
